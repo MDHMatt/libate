@@ -1,6 +1,17 @@
 # syntax=docker/dockerfile:1-labs
 
-ARG GIT_TAG=${GIT_TAG:-12.0.2}
+# This Dockerfile is designed to build a KasmVNC container for the Libation application.
+# Libation is a book management application that allows users to organize and track their reading.
+# The container is based on the lsiobase/kasmvnc:debianbookworm image, which provides a lightweight VNC server environment.
+# The Dockerfile sets up the necessary directories, configuration files, and dependencies for Libation.
+# It also includes a custom autostart script and Openbox menu configuration.
+# The container is configured to run Libation with a default user and group ID, which can be overridden by environment variables.
+# The Libation application is downloaded from its GitHub releases page, and the appropriate version is installed based on the specified GIT_TAG.
+# The container exposes port 3000 for KasmVNC access.
+
+# Base image
+ARG GIT_TAG=${GIT_TAG:-12.4.3}
+#ARG GIT_TAG=12.0.2
 ARG TARGETARCH
 
 FROM lsiobase/kasmvnc:debianbookworm 
