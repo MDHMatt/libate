@@ -1,0 +1,73 @@
+name: Build Docker, Run Libate
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build-dev:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'  # Only run this job on the dev branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build Docker image from dev branch
+        run: |
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:dev .
+
+      - name: Build and Push Docker Image for dev
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:dev
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:${{ github.sha }}
+
+  build-main:
+    runs-on: ubuntu-latest
+    needs: build-dev  # Ensure this runs after build-dev
+    if: github.ref == 'refs/heads/main'  # Only run this job on the main branch
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build Docker image from main branch
+        run: |
+          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:latest .
+
+      - name: Build and Push Docker Image for main
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:latest
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:${{ github.sha }}
