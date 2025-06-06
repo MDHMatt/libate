@@ -10,6 +10,7 @@ updates:
 #  # Enable version updates for Docker
 #  - package-ecosystem: "docker" # Specify the package ecosystem (Docker)
     # Specify the target branch for updates
+  - package-ecosystem: "docker"
     target-branch: "dev" # specify the target branch here
     # Look for a `Dockerfile` in the `root` directory
     directory: "/"
@@ -31,3 +32,4 @@ updates:
   #   ignore:
   #     - dependency-name: "flask" # Example: Ignore updates for Flask
   #       versions: ["<2.0"]       # Ignore all versions lower than 2.0
+
