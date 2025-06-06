@@ -1,0 +1,29 @@
+version: 2
+
+updates:
+#  - package-ecosystem: "" # See documentation for possible values
+#    directory: "/" # Location of package manifests
+#    schedule:
+#      interval: "weekly"
+#  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    target-branch: "dev" # specify the target branch here
+    # Look for a `Dockerfile` in the `root` directory
+    directory: "/"
+    # Check for updates once a week
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "update"             # Commit message prefix for updates
+
+  - package-ecosystem: "pip"  # Specify the package ecosystem (Python)
+    target-branch: "dev" # specify the target branch here
+    directory: "/"              # Location of the requirements file
+    schedule:
+      interval: "daily"        # Check for updates weekly
+    commit-message:
+      prefix: "fix"             # Commit message prefix for updates
+    open-pull-requests-limit: 5  # Limit the number of open PRs
+    ignore:
+      - dependency-name: "flask" # Example: Ignore updates for Flask
+        versions: ["<2.0"]       # Ignore all versions lower than 2.0
