@@ -1,4 +1,6 @@
-name: Build Docker, Run IP Sentinel, the Flask IP Blocklist Checker
+# This GitHub Actions workflow builds and pushes Docker images for the dev and main branches.
+name: Build Docker, Run Libate
+description: Build and push Docker images for dev and main branches
 
 on:
   push:
@@ -71,3 +73,4 @@ jobs:
           tags: |
             ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:latest
             ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:${{ github.sha }}
+
