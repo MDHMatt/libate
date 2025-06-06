@@ -27,12 +27,12 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build Docker image from dev branch
         run: |
-          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:dev .
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:dev .
 
       - name: Build and Push Docker Image for dev
         uses: docker/build-push-action@v4
@@ -40,8 +40,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:dev
-            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:dev
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:${{ github.sha }}
 
   build-main:
     runs-on: ubuntu-latest
@@ -58,12 +58,12 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build Docker image from main branch
         run: |
-          docker build -t ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:latest .
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:latest .
 
       - name: Build and Push Docker Image for main
         uses: docker/build-push-action@v4
@@ -71,6 +71,6 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:latest
-            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ vars.REPO_NAME }}:${{ github.sha }}
 
