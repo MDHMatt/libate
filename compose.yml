@@ -1,6 +1,6 @@
 services:
     libation:
-        image: ceramicwhite/libation:latest
+        image: mdhmatt/libate:latest
         container_name: libation
         stop_grace_period: 1m
         restart: on-failure
