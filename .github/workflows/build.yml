@@ -21,8 +21,8 @@ jobs:
   build-dev:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/dev'  # Only run this job on the dev branch
-    env:
-      REPO_NAME: ${{ github.event.repository.name }}  # Get the repository name from the event
+    #env:
+    #  REPO_NAME: ${{ github.event.repository.name }}  # Get the repository name from the event
     
     steps:
       - name: Checkout code
@@ -39,8 +39,7 @@ jobs:
 
       - name: Build Docker image from dev branch
         run: |
-          
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev .
+          docker build --build-arg GIT_TAG=${{ env.GIT_TAG }} -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev .
 
       - name: Build and Push Docker Image for dev
         uses: docker/build-push-action@v4
@@ -49,7 +48,7 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.ref_name }}_${{ env.GIT_TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.GIT_TAG }}_${{ github.ref_name }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
           build-args: |
             GIT_TAG=${{ env.GIT_TAG }}
@@ -74,7 +73,7 @@ jobs:
 
       - name: Build Docker image from main branch
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest .
+          docker build --build-arg GIT_TAG=${{ env.GIT_TAG }} -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest .
 
       - name: Build and Push Docker Image for main
         uses: docker/build-push-action@v4
