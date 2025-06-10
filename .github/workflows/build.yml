@@ -11,6 +11,12 @@ on:
       - main
       - dev
 
+env:
+  GIT_TAG: 12.4.3
+  ## Set a default GIT_TAG, can be overridden by running
+  # docker build --build-arg GIT_TAG=13.0.0 .
+  
+
 jobs:
   build-dev:
     runs-on: ubuntu-latest
@@ -43,7 +49,10 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.ref_name }}_${{ env.GIT_TAG }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
+          build-args: |
+            GIT_TAG=${{ env.GIT_TAG }}
 
   build-main:
     runs-on: ubuntu-latest
@@ -74,5 +83,6 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.GIT_TAG }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
 

@@ -10,17 +10,18 @@
 # The container exposes port 3000 for KasmVNC access.
 
 # Base image
-ARG GIT_TAG=${GIT_TAG:-12.4.3}
+ARG GIT_TAG
 #ARG GIT_TAG=12.0.2
 ARG TARGETARCH
 
 FROM lsiobase/kasmvnc:debianbookworm 
 
-ARG GIT_TAG
+
 ARG TARGETARCH
 
 ENV PUID=${PUID:-1000} \
-    PGID=${PGID:-1000}
+    PGID=${PGID:-1000} \
+    GIT_TAG=${GIT_TAG}
 
 # Step 1: Create all necessary directories
 RUN mkdir -p /defaults \
