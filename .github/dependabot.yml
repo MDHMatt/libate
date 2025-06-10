@@ -28,10 +28,12 @@ updates:
     directory: "/" # Look for a `Dockerfile` in the `root` directory
     schedule: # Check for updates once a week
       interval: "daily"
-    target-branch: "dev" # specify the target branch here
+    target-branch: "dev" # specify the target branch to update here
     open-pull-requests-limit: 5  # Limit the number of open PRs
     commit-message: # Commit message prefix for updates
       prefix: "update"
+    allow:
+      - dependency-type: "all"
 
 # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -40,10 +42,16 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    target-branch: "dev" # specify the target branch to update here
     open-pull-requests-limit: 5  # Limit the number of open PRs
     commit-message: # Commit message prefix for updates
       prefix: "update git-actions"
-
-allow:
-  - dependency-type: "all"
+    allow:
+      - dependency-type: "all" # Allow updates for all dependency types (e.g., direct and indirect dependencies)
+    # You can also specify `direct` or `indirect` if you want to limit the updates to only direct or indirect dependencies.
+    # For example, `dependency-type: "direct"` will only update direct dependencies.
+    # If you want to ignore specific dependencies, you can use the `ignore` field.
+    # ignore:
+    #   - dependency-name: "actions/checkout" # Example: Ignore updates for actions/checkout
+    #     versions: ["<2.0"]  # Ignore all versions lower than 2.0
 
