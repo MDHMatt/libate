@@ -9,28 +9,25 @@
 # The Libation application is downloaded from its GitHub releases page, and the appropriate version is installed based on the specified GIT_TAG.
 # The container exposes port 3000 for KasmVNC access.
 
-# Base image
+# Step 1: Get base image 
+ARG GIT_TAG=${GIT_TAG:-12.4.3}
+FROM lsiobase/kasmvnc:debianbookworm
+
 ARG GIT_TAG
-#ARG GIT_TAG=12.0.2
-ARG TARGETARCH
-
-FROM lsiobase/kasmvnc:debianbookworm 
-
-
 ARG TARGETARCH
 
 ENV PUID=${PUID:-1000} \
     PGID=${PGID:-1000} \
     GIT_TAG=${GIT_TAG}
 
-# Step 1: Create all necessary directories
+# Step 2: Create all necessary directories
 RUN mkdir -p /defaults \
     /config/Libation \
     /config/Books \
     /config/Libation/logs \
     /config/Libation/tmp
 
-# Step 2: Copy static config files
+# Step 3: Copy static config files
 COPY configs/autostart /defaults/autostart
 RUN chmod +x /defaults/autostart
 
@@ -147,10 +144,10 @@ COPY configs/Settings.json /config/Libation/Settings.json
 #     rm -rf /var/lib/apt/lists/* && \
 #     rm -f libation.deb
 
-# Install dependencies and set up libation
+# Step 4: Install dependencies and set up libation
 RUN set -eux; \
     echo fs.inotify.max_user_instances=524288 | tee -a /etc/sysctl.conf; \
-    apt-get update; \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
         libgtk-3-0 \
         python3-xdg \

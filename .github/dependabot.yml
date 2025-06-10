@@ -7,19 +7,6 @@ updates:
 #    schedule:
 #      interval: "weekly"
 #
-#  # Enable version updates for Docker
-#  - package-ecosystem: "docker" # Specify the package ecosystem (Docker)
-    # Specify the target branch for updates
-  - package-ecosystem: "docker"
-    target-branch: "dev" # specify the target branch here
-    # Look for a `Dockerfile` in the `root` directory
-    directory: "/"
-    # Check for updates once a week
-    schedule:
-      interval: "daily"
-    commit-message:
-      prefix: "update"             # Commit message prefix for updates
-
 # For python projects, uncomment the following section
   # - package-ecosystem: "pip"  # Specify the package ecosystem (Python)
   #   target-branch: "dev" # specify the target branch here
@@ -32,4 +19,31 @@ updates:
   #   ignore:
   #     - dependency-name: "flask" # Example: Ignore updates for Flask
   #       versions: ["<2.0"]       # Ignore all versions lower than 2.0
+
+
+#  # Enable version updates for Docker
+#  - package-ecosystem: "docker" # Specify the package ecosystem (Docker)
+    # Specify the target branch for updates
+  - package-ecosystem: "docker"
+    directory: "/" # Look for a `Dockerfile` in the `root` directory
+    schedule: # Check for updates once a week
+      interval: "daily"
+    target-branch: "dev" # specify the target branch here
+    open-pull-requests-limit: 5  # Limit the number of open PRs
+    commit-message: # Commit message prefix for updates
+      prefix: "update"
+
+# Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    # Workflow files stored in the default location of `.github/workflows`
+    # You don't need to specify `/.github/workflows` for `directory`. You can use `directory: "/"`.
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5  # Limit the number of open PRs
+    commit-message: # Commit message prefix for updates
+      prefix: "update git-actions"
+
+allow:
+  - dependency-type: "all"
 
