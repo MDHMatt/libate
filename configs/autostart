@@ -1,0 +1,9 @@
+#!/bin/bash
+# Find Libation executable and run it
+if [ -f /usr/bin/libation ]; then
+  /usr/bin/libation
+elif [ -f /usr/share/libation/Libation ]; then
+  /usr/share/libation/Libation
+else
+  echo "ERROR: Cannot find Libation executable"
+fi
