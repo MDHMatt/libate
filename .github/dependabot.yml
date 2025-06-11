@@ -27,8 +27,7 @@ updates:
   - package-ecosystem: "docker"
     directory: "/" # Look for a `Dockerfile` in the `root` directory
     schedule: # Check for updates once a week
-      interval: "cron"
-      cronjob: "*/15 * * * *" # Every 15 minutes
+      interval: "daily"
     target-branch: "dev" # specify the target branch to update here
     open-pull-requests-limit: 5  # Limit the number of open PRs
     commit-message: # Commit message prefix for updates
