@@ -1,4 +1,4 @@
-# This GitHub Actions workflow builds and pushes Docker images for the dev and main branches.
+# This GitHub Actions workflow builds and pushes Docker images for the dev and main branches
 name: Build Docker, Run Libate
 
 on:
