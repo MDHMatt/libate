@@ -10,7 +10,7 @@
 # The container exposes port 3000 for KasmVNC access.
 
 # Step 1: Get base image 
-ARG GIT_TAG=${GIT_TAG:-12.4.3}
+ARG GIT_TAG=${GIT_TAG:-12.4.0}
 FROM lsiobase/kasmvnc:debianbookworm
 
 ARG GIT_TAG
