@@ -47,7 +47,7 @@ jobs:
           context: .
           push: true
           tags: |
-            # ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.GIT_TAG }}_${{ github.ref_name }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev
           build-args: |
@@ -81,7 +81,7 @@ jobs:
           context: .
           push: true
           tags: |
-            # ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.GIT_TAG }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
 
