@@ -12,7 +12,7 @@ on:
       - dev
 
 env:
-  GIT_TAG: 12.4.3
+  GIT_TAG: 12.4.11
   ## Set a default GIT_TAG, can be overridden by running
   # docker build --build-arg GIT_TAG=13.0.0 .
   
@@ -84,6 +84,4 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.GIT_TAG }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
-
-
 
