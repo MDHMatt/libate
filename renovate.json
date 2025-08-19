@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/London",
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "matchPackageNames": ["rmcrackan/Libation"],
+      "matchDatasources": ["github-releases"],
+      "enabled": true,
+      "labels": ["deps:libation"],
+      "prPriority": 10
+    }
+  ]
+}
