@@ -17,21 +17,21 @@ jobs:
         run: |
           v=$(grep -Eo 'ARG[[:space:]]+LIBATION_VERSION[[:space:]]*=[[:space:]]*"?[0-9]+\.[0-9]+\.[0-9]+' Dockerfile \
               | sed 's/.*=//; s/"//g; s/ //g')
-          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "version=$v" >> $GITHUB_OUTPUT
 
       - id: latest
         name: Get latest Libation version
         run: |
           latest=$(curl -fsSL -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/rmcrackan/Libation/releases/latest | jq -r .tag_name)
-          echo "version=${latest#v}" >> "$GITHUB_OUTPUT"
+          echo "version=${latest#v}" >> $GITHUB_OUTPUT
 
       - name: Enforce newest
         env:
           PINNED: ${{ steps.pinned.outputs.version }}
           LATEST: ${{ steps.latest.outputs.version }}
         run: |
-          test "$PINNED" = "$LATEST" || {
-            echo "::error::Not on latest Libation ($PINNED != $LATEST). Bump ARG LIBATION_VERSION.";
+          if [ "$PINNED" != "$LATEST" ]; then
+            echo "::error::Not on latest Libation ($PINNED != $LATEST). Bump ARG LIBATION_VERSION."
             exit 1
-          }
+          fi
