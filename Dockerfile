@@ -59,8 +59,8 @@ RUN set -eux; \
         ARCH=$(dpkg --print-architecture); \
     echo "Building for architecture: $ARCH"; \
     # Download the correct package for the architecture
-    #curl -fSL "https://github.com/rmcrackan/Libation/releases/download/v${LIBATION_VERSION}/Libation.${LIBATION_VERSION}-linux-chardonnay-${ARCH}.deb" -o libation.deb; \
-    curl -fsSL "$LIBATION_DEB_URL" -o libation.deb; \
+    curl -fSL "https://github.com/rmcrackan/Libation/releases/download/v${LIBATION_VERSION}/Libation.${LIBATION_VERSION}-linux-chardonnay-${ARCH}.deb" -o libation.deb; \
+    #curl -fsSL "$LIBATION_DEB_URL" -o libation.deb; \
     # Install the downloaded package
     dpkg -i libation.deb || apt-get install -f -y; \
     # Make sure libation is in PATH
