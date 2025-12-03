@@ -14,8 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Get latest Libation release
         id: latest-release
