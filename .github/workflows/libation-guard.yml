@@ -15,9 +15,14 @@ jobs:
       - id: pinned
         name: Extract pinned Libation version
         run: |
-          v=$(grep -Eo 'ARG[[:space:]]+LIBATION_VERSION[[:space:]]*=[[:space:]]*"?[0-9]+\.[0-9]+\.[0-9]+' Dockerfile \
-              | sed 's/.*=//; s/"//g; s/ //g')
-          echo "version=$v" >> $GITHUB_OUTPUT
+          v=$(grep -Eo 'ARG[[:space:]]+LIBATION_VERSION[[:space:]]*=[[:space:]]*"?[0-9]+\.[0-9]+\.[0-9]+\' Dockerfile \
+              | sed -E 's/.*=//; s/"//g; s/ //g; s/^[[:space:]]*//; s/[[:space:]]*$//' \
+              | tr -d '\r')
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Failed to extract LIBATION_VERSION from Dockerfile (got: '$v')"
+            exit 1
+          fi
+          printf 'version=%s\n' "$v" >> "$GITHUB_OUTPUT"
 
       - id: latest
         name: Get latest Libation version
