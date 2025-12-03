@@ -6,20 +6,27 @@
 # The Dockerfile sets up the necessary directories, configuration files, and dependencies for Libation.
 # It also includes a custom autostart script and Openbox menu configuration.
 # The container is configured to run Libation with a default user and group ID, which can be overridden by environment variables.
-# The Libation application is downloaded from its GitHub releases page, and the appropriate version is installed based on the specified GIT_TAG.
+# The Libation application is downloaded from its GitHub releases page, and the appropriate version is installed based on the specified LIBATION_VERSION.
 # The container exposes port 3000 for KasmVNC access.
 
-# Step 1: Get base image 
-ARG GIT_TAG=${GIT_TAG:-12.4.3}
-#ARG GIT_TAG=12.4.3
+# Step 1: Get base image
+# renovate: datasource=github-releases depName=rmcrackan/Libation extractVersion=^v?(?<version>.*)$
+ARG LIBATION_VERSION=12.5.2
+
+# Construct the exact Chardonnay/amd64 .deb URL from the pinned version
+ARG LIBATION_DEB_URL="https://github.com/rmcrackan/Libation/releases/download/v${LIBATION_VERSION}/Libation.${LIBATION_VERSION}-linux-chardonnay-amd64.deb"
+
+ARG LIBATION_VERSION=${LIBATION_VERSION:-12.4.10} # Default version if not set
+#ARG LIBATION_VERSION=12.4.3
+
 FROM lsiobase/kasmvnc:debianbookworm
 
-ARG GIT_TAG
+ARG LIBATION_VERSION
 ARG TARGETARCH
 
 ENV PUID=${PUID:-1000} \
     PGID=${PGID:-1000} \
-    GIT_TAG=${GIT_TAG}
+    LIBATION_VERSION=${LIBATION_VERSION}
 
 # Step 2: Create all necessary directories
 RUN mkdir -p /defaults \
@@ -52,7 +59,9 @@ RUN set -eux; \
         ARCH=$(dpkg --print-architecture); \
     echo "Building for architecture: $ARCH"; \
     # Download the correct package for the architecture
-    curl -fSL "https://github.com/rmcrackan/Libation/releases/download/v${GIT_TAG}/Libation.${GIT_TAG}-linux-chardonnay-${ARCH}.deb" -o libation.deb; \
+    curl -fSL "https://github.com/rmcrackan/Libation/releases/download/v${LIBATION_VERSION}/Libation.${LIBATION_VERSION}-linux-chardonnay-${ARCH}.deb" -o libation.deb; \
+    #curl -fsSL "$LIBATION_DEB_URL" -o libation.deb; \
+    # Install the downloaded package
     dpkg -i libation.deb || apt-get install -f -y; \
     # Make sure libation is in PATH
     which libation || echo "WARNING: libation not found in PATH"; \

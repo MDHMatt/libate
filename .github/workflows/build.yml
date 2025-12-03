@@ -10,9 +10,16 @@ on:
     branches:
       - main
       - dev
+  # workflow_dispatch:  # Allows manual triggering of the workflow
+  # inputs:
+  #   LIBATION_VERSION:
+  #     description: 'Libation version to build'
+  #     default: '12.5.2'
+  #     required: true
 
 env:
-  GIT_TAG: 12.4.11
+  LIBATION_VERSION: 12.5.2
+  #GIT_TAG: 12.4.11
   ## Set a default GIT_TAG, can be overridden by running
   # docker build --build-arg GIT_TAG=13.0.0 .
   
@@ -26,7 +33,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -39,7 +46,7 @@ jobs:
 
       - name: Build Docker image from dev branch
         run: |
-          docker build --build-arg GIT_TAG=${{ env.GIT_TAG }} -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev .
+          #docker build --build-arg GIT_TAG=${{ env.LIBATION_VERSION }} -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev .
 
       - name: Build and Push Docker Image for dev
         uses: docker/build-push-action@v6
@@ -48,10 +55,10 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.GIT_TAG }}_${{ github.ref_name }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.LIBATION_VERSION }}_${{ github.ref_name }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:dev
           build-args: |
-            GIT_TAG=${{ env.GIT_TAG }}
+            LIBATION_VERSION=${{ env.LIBATION_VERSION }}
 
   build-main:
     runs-on: ubuntu-latest
@@ -60,7 +67,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -73,7 +80,7 @@ jobs:
 
       - name: Build Docker image from main branch
         run: |
-          docker build --build-arg GIT_TAG=${{ env.GIT_TAG }} -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest .
+          docker build --build-arg LIBATION_VERSION=${{ env.LIBATION_VERSION }} -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest .
 
       - name: Build and Push Docker Image for main
         uses: docker/build-push-action@v6
@@ -82,6 +89,6 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.GIT_TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.LIBATION_VERSION }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
 
