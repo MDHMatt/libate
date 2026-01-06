@@ -1,7 +1,12 @@
 # .github/workflows/libation-guard.yml
+# Enforces that we're always on the latest Libation version
+# Skips check for automation PRs to avoid catch-22 scenario
 name: libation-guard
+
 on:
   push:
+    branches:
+      - main
   pull_request:
   schedule:
     - cron: "0 7 * * 1"  # Mondays 07:00 UTC
@@ -12,31 +17,59 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Skip guard for version update PRs (avoid catch-22)
+      - name: Check if this is an automation PR
+        id: check-automation
+        run: |
+          # Skip if this is an update PR branch
+          if [[ "${{ github.head_ref }}" == update/libation-* ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::Skipping version guard for automation PR"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - id: pinned
         name: Extract pinned Libation version
+        if: steps.check-automation.outputs.skip != 'true'
         run: |
-          v=$(grep -Eo 'ARG[[:space:]]+LIBATION_VERSION[[:space:]]*=[[:space:]]*"?[0-9]+\.[0-9]+\.[0-9]+\' Dockerfile \
+          v=$(grep -Eo 'ARG[[:space:]]+LIBATION_VERSION[[:space:]]*=[[:space:]]*"?[0-9]+\.[0-9]+\.[0-9]+' Dockerfile \
               | sed -E 's/.*=//; s/"//g; s/ //g; s/^[[:space:]]*//; s/[[:space:]]*$//' \
+              | head -1 \
               | tr -d '\r')
           if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::Failed to extract LIBATION_VERSION from Dockerfile (got: '$v')"
             exit 1
           fi
-          printf 'version=%s\n' "$v" >> "$GITHUB_OUTPUT"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "::notice::Current version: $v"
 
       - id: latest
         name: Get latest Libation version
+        if: steps.check-automation.outputs.skip != 'true'
         run: |
           latest=$(curl -fsSL -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/rmcrackan/Libation/releases/latest | jq -r .tag_name)
           echo "version=${latest#v}" >> $GITHUB_OUTPUT
+          echo "::notice::Latest upstream version: ${latest#v}"
 
       - name: Enforce newest
+        if: steps.check-automation.outputs.skip != 'true'
         env:
           PINNED: ${{ steps.pinned.outputs.version }}
           LATEST: ${{ steps.latest.outputs.version }}
+          IS_PR: ${{ github.event_name == 'pull_request' }}
         run: |
           if [ "$PINNED" != "$LATEST" ]; then
-            echo "::error::Not on latest Libation ($PINNED != $LATEST). Bump ARG LIBATION_VERSION."
-            exit 1
+            if [ "$IS_PR" == "true" ]; then
+              # Warning only on PRs (allows version update PRs to be created)
+              echo "::warning::Not on latest Libation ($PINNED != $LATEST). Please update ARG LIBATION_VERSION."
+              echo "::notice::This is a warning on PRs. Will enforce on main branch."
+            else
+              # Enforce on main branch
+              echo "::error::Not on latest Libation ($PINNED != $LATEST). Bump ARG LIBATION_VERSION."
+              exit 1
+            fi
+          else
+            echo "::notice::✅ Version is up to date ($PINNED)"
           fi
