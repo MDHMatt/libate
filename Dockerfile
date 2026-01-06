@@ -68,9 +68,23 @@ RUN set -eux; \
     chown -R ${PUID}:${PGID} /config/Libation /config/Books; \
     # Create symlink for Books folder
     ln -s /config/Books /home/kasm-user/; \
-    # Clean up
+    # AGGRESSIVE CLEANUP for smaller image size (saves ~50-100MB)
     apt-get purge -y --auto-remove curl; \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* libation.deb
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/* \
+           /tmp/* \
+           /var/tmp/* \
+           libation.deb \
+           /usr/share/doc/* \
+           /usr/share/man/* \
+           /usr/share/locale/* \
+           /var/cache/debconf/* \
+           /var/log/*; \
+    # Remove .NET debug symbols and PDB files (saves 30-50MB)
+    find /usr -type f -name '*.pdb' -delete 2>/dev/null || true; \
+    find /usr/share/libation -type f -name '*.pdb' -delete 2>/dev/null || true; \
+    # Remove .NET XML documentation files (saves ~5-10MB)
+    find /usr/share/libation -type f -name '*.xml' -delete 2>/dev/null || true
 
 # Expose KasmVNC port
 EXPOSE 3000

@@ -137,10 +137,18 @@ This repository implements **strict version synchronization**:
 - Lines 1-15: Build arguments and version setup
 - Lines 17-30: Base image and directory creation
 - Lines 32-40: Configuration file placement
-- Lines 42-72: Dependency installation, Libation .deb download, setup
-- Line 75: Port exposure (3000)
+- Lines 42-87: Dependency installation, Libation .deb download, setup
+- Lines 71-87: Aggressive cleanup for smaller image size (~50-100MB savings)
+- Line 90: Port exposure (3000)
 
 **Architecture Detection:** Automatically detects `amd64`, `arm64`, etc. for proper .deb download
+
+**Image Optimization:**
+- Removes documentation, man pages, and localization files
+- Deletes .NET debug symbols (.pdb files) - saves 30-50MB
+- Removes XML documentation files
+- Cleans apt cache and temporary files
+- **Target size:** ~850-900MB (down from ~1GB)
 
 **IMPORTANT - Single Source of Truth:**
 - Only ONE `ARG LIBATION_VERSION=X.Y.Z` declaration exists (line 14)
@@ -308,14 +316,10 @@ git push -u origin claude/my-branch || sleep 4
 - Branch: main (dev branch removed)
 
 **Recent Changes:**
-- **Optimized GitHub Actions workflows:**
-  - Fixed libation-guard catch-22 (skips automation PRs, warns on PRs)
-  - Added multi-platform builds (amd64 + arm64)
-  - Implemented Docker layer caching for faster builds
-  - Added .deb package verification before PR creation
-  - Improved error handling with API retries
-  - Added concurrency control to cancel outdated builds
-  - Added duplicate PR detection
+- **Docker image optimization:**
+  - Added aggressive cleanup to reduce image size by ~50-100MB
+  - Remove .NET debug symbols and documentation files
+  - Target size: ~850-900MB (down from ~1GB)
 - **Simplified repository structure:**
   - Removed `dev` branch - all work happens on `main`
   - Simplified build workflow to single job
