@@ -18,7 +18,7 @@ on:
   #     required: true
 
 env:
-  LIBATION_VERSION: 12.5.2
+  LIBATION_VERSION: 13.1.1
   #GIT_TAG: 12.4.11
   ## Set a default GIT_TAG, can be overridden by running
   # docker build --build-arg GIT_TAG=13.0.0 .
