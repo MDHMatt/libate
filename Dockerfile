@@ -11,13 +11,7 @@
 
 # Step 1: Get base image
 # renovate: datasource=github-releases depName=rmcrackan/Libation extractVersion=^v?(?<version>.*)$
-ARG LIBATION_VERSION=12.5.2
-
-# Construct the exact Chardonnay/amd64 .deb URL from the pinned version
-ARG LIBATION_DEB_URL="https://github.com/rmcrackan/Libation/releases/download/v${LIBATION_VERSION}/Libation.${LIBATION_VERSION}-linux-chardonnay-amd64.deb"
-
-ARG LIBATION_VERSION=${LIBATION_VERSION:-12.4.10} # Default version if not set
-#ARG LIBATION_VERSION=12.4.3
+ARG LIBATION_VERSION=13.1.1
 
 FROM lsiobase/kasmvnc:debianbookworm
 

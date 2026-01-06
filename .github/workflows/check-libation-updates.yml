@@ -58,8 +58,8 @@ jobs:
         if: steps.compare.outputs.update_needed == 'true'
         run: |
           LATEST="${{ steps.latest-release.outputs.latest_version }}"
-          # Update GIT_TAG default in Dockerfile
-          sed -i "s/ARG GIT_TAG=\${GIT_TAG:-.*}/ARG GIT_TAG=\${GIT_TAG:-$LATEST}/" Dockerfile
+          # Update LIBATION_VERSION in Dockerfile
+          sed -i "s/ARG LIBATION_VERSION=.*/ARG LIBATION_VERSION=$LATEST/" Dockerfile
           echo "Updated Dockerfile with version $LATEST"
       
       - name: Create Pull Request
