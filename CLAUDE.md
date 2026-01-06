@@ -66,31 +66,52 @@ This repository implements **strict version synchronization**:
 
 #### 1. Build Workflow (`.github/workflows/build.yml`)
 **Triggers:** Push to `main`, pull requests, manual dispatch
+**Optimizations:**
+- Multi-platform builds: `linux/amd64`, `linux/arm64`
+- Docker layer caching via GitHub Actions cache
+- Concurrency control (cancels outdated builds)
+- Only logs into DockerHub when actually pushing
+
 **Job:**
 - `build` - Builds and pushes Docker images
   - Tags: `<sha>`, `<version>`, `latest`
   - Only pushes on successful merges to `main` (not on PRs)
+  - Includes OCI metadata and annotations
 
 **Docker Build Arguments:**
 - `LIBATION_VERSION` - Version to download from upstream releases
 
 #### 2. Version Guard Workflow (`.github/workflows/libation-guard.yml`)
-**Triggers:** Push, PR, weekly schedule (Mondays 7 AM UTC)
+**Triggers:** Push to `main`, PRs, weekly schedule (Mondays 7 AM UTC)
 **Purpose:** Enforce version consistency
-**Process:**
-1. Extract `LIBATION_VERSION` from `Dockerfile`
-2. Fetch latest release from `rmcrackan/Libation` GitHub API
-3. Fail CI if versions don't match
+**Smart Behavior:**
+- **Skips** automation PRs (`update/libation-*`) to avoid catch-22
+- **Warns** on PRs (doesn't fail)
+- **Enforces** on main branch (fails if not latest)
+- Provides clear notices when versions match
 
-**IMPORTANT:** This guard ensures we're always on the latest Libation version. If this fails, update both `Dockerfile` and `build.yml`.
+**Process:**
+1. Check if PR is from automation (skip if yes)
+2. Extract `LIBATION_VERSION` from `Dockerfile`
+3. Fetch latest release from `rmcrackan/Libation` GitHub API
+4. Warn on PRs, fail on main if versions don't match
 
 #### 3. Update Checker Workflow (`.github/workflows/check-libation-updates.yml`)
 **Triggers:** Daily at 2 AM UTC, manual dispatch
 **Purpose:** Automated version updates
+**Improvements:**
+- API retry logic (3 attempts with backoff)
+- Verifies .deb package exists before creating PR
+- Checks for duplicate PRs (prevents spam)
+- Proper token handling for PR creation
+- Links to release notes in PR body
+
 **Process:**
-1. Query GitHub API for latest Libation release
-2. Compare with current `LIBATION_VERSION` in `build.yml`
-3. If newer version exists:
+1. Query GitHub API for latest Libation release (with retries)
+2. Verify .deb package is available
+3. Check if update PR already exists
+4. Compare with current `LIBATION_VERSION` in `build.yml`
+5. If newer version exists and package verified:
    - Update `build.yml` and `Dockerfile`
    - Create PR with branch `update/libation-<version>`
    - Label with `automation` and `dependencies`
