@@ -55,6 +55,7 @@ This repository implements **strict version synchronization**:
 3. CI fails if versions don't match the latest upstream release
 4. Automated workflows check for new releases daily and create PRs
 5. Three-layer enforcement: Renovate, Dependabot, and custom guard workflow
+6. All updates to be made using the `dev` branch first. `main` to be updated on succesful builds of `dev`.
 
 ## Development Workflows
 
