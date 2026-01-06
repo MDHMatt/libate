@@ -114,15 +114,20 @@ This repository implements **strict version synchronization**:
 ## Important Files Reference
 
 ### Dockerfile (Container Build)
-**Current Version:** `LIBATION_VERSION=12.5.2` (line 14)
+**Current Version:** `LIBATION_VERSION=13.1.1` (line 14)
 **Key Sections:**
-- Lines 1-20: Build arguments and version setup
-- Lines 22-36: Directory creation and file copying
-- Lines 38-47: Configuration file placement
-- Lines 49-79: Dependency installation, Libation .deb download, setup
-- Line 82: Port exposure (3000)
+- Lines 1-15: Build arguments and version setup
+- Lines 17-30: Base image and directory creation
+- Lines 32-40: Configuration file placement
+- Lines 42-72: Dependency installation, Libation .deb download, setup
+- Line 75: Port exposure (3000)
 
 **Architecture Detection:** Automatically detects `amd64`, `arm64`, etc. for proper .deb download
+
+**IMPORTANT - Single Source of Truth:**
+- Only ONE `ARG LIBATION_VERSION=X.Y.Z` declaration exists (line 14)
+- This is re-declared after FROM (line 18) to make it available in build stages
+- No duplicate or conflicting version declarations
 
 **Critical:** The Renovate comment on line 13 enables automatic dependency tracking:
 ```dockerfile
@@ -278,13 +283,18 @@ git push -u origin claude/my-branch || sleep 4
 ## Version History Context
 
 **Current State (as of 2026-01-06):**
-- Libation Version: 12.5.2
+- Libation Version: 13.1.1
 - Base Image: lsiobase/kasmvnc:debianbookworm
 - Docker Hub: mdhmatt/libate
 - GitHub: MDHMatt/libate
-- Branch: claude/add-claude-documentation-eC0jx
+- Branch: dev
 
 **Recent Changes:**
+- **Fixed version management issues:**
+  - Removed duplicate LIBATION_VERSION declarations in Dockerfile
+  - Fixed check-libation-updates.yml to update correct ARG line
+  - Streamlined version to single source of truth
+- Updated to Libation v13.1.1
 - Implemented version guard workflow for enforcement
 - Added automated update checker workflow
 - Configured Dependabot for Docker and GitHub Actions
@@ -332,5 +342,5 @@ For issues related to:
 ---
 
 **Last Updated:** 2026-01-06
-**Document Version:** 1.0.0
-**Repository Version:** Libation 12.5.2
+**Document Version:** 1.1.0
+**Repository Version:** Libation 13.1.1
