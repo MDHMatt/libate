@@ -1,3 +1,39 @@
+================================================================================
+LIBATE - DOCKER CONTAINERIZATION PROJECT
+================================================================================
+
+This is a Docker containerization project for Libation, created as a passion
+project to make the Libation audiobook manager easier to deploy and use.
+
+IMPORTANT DISCLAIMERS:
+
+1. This project (Libate) is NOT the official Libation application. It is an
+   independent containerization effort. For the official Libation project,
+   visit: https://github.com/rmcrackan/Libation
+
+2. NO WARRANTY OR RESPONSIBILITY: This is a personal passion project provided
+   "AS IS" without any warranty of any kind. The author holds NO RESPONSIBILITY
+   for any data loss, corruption, or damage that may occur from using this
+   Docker container. Use at your own risk.
+
+3. DATA BACKUP: Users are STRONGLY ENCOURAGED to maintain their own backups of
+   audiobook libraries, configuration files, and any important data. The
+   containerization process, volume mounts, and application behavior may result
+   in unexpected data loss.
+
+4. COMPATIBILITY: This project uses the GPL-3.0 license to maintain
+   compatibility with the upstream Libation project, which is also licensed
+   under GPL-3.0.
+
+5. SUPPORT: For issues related to this Docker container, open an issue at
+   MDHMatt/libate. For issues with the Libation application itself, please
+   use the upstream repository at rmcrackan/Libation.
+
+By using this Docker container, you acknowledge that you understand and accept
+these disclaimers and the terms of the GPL-3.0 license below.
+
+================================================================================
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007
 
