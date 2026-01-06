@@ -53,26 +53,23 @@ This repository implements **strict version synchronization**:
 1. The `LIBATION_VERSION` in `Dockerfile` is the single source of truth
 2. The same version must be specified in `.github/workflows/build.yml`
 3. CI fails if versions don't match the latest upstream release
-4. Automated workflows check for new releases daily and create PRs
+4. Automated workflows check for new releases daily and create PRs to `main`
 5. Three-layer enforcement: Renovate, Dependabot, and custom guard workflow
-6. All updates to be made using the `dev` branch first. `main` to be updated on succesful builds of `dev`.
 
 ## Development Workflows
 
 ### Branch Strategy
-- **`main`** - Production-ready releases, builds `latest` Docker tag
-- **`dev`** - Development branch, builds `dev` Docker tag
+- **`main`** - Production branch, builds and pushes Docker images automatically
 - **Feature branches** - Use `claude/` prefix for AI-generated branches (e.g., `claude/add-feature-abc123`)
 
 ### CI/CD Pipeline
 
 #### 1. Build Workflow (`.github/workflows/build.yml`)
-**Triggers:** Push to `main`/`dev`, pull requests
-**Jobs:**
-- `build-dev` - Builds for dev branch
-  - Tags: `<sha>`, `<version>_dev`, `dev`
-- `build-main` - Builds for main branch
+**Triggers:** Push to `main`, pull requests, manual dispatch
+**Job:**
+- `build` - Builds and pushes Docker images
   - Tags: `<sha>`, `<version>`, `latest`
+  - Only pushes on successful merges to `main` (not on PRs)
 
 **Docker Build Arguments:**
 - `LIBATION_VERSION` - Version to download from upstream releases
@@ -101,8 +98,8 @@ This repository implements **strict version synchronization**:
 ### Dependency Management
 
 **Dependabot** (`.github/dependabot.yml`):
-- **Docker:** Daily checks, targets `dev` branch
-- **GitHub Actions:** Weekly checks, targets `dev` branch
+- **Docker:** Daily checks, targets `main` branch
+- **GitHub Actions:** Weekly checks, targets `main` branch
 - Max 5 open PRs per ecosystem
 
 **Renovate** (`renovate.json`):
@@ -287,9 +284,13 @@ git push -u origin claude/my-branch || sleep 4
 - Base Image: lsiobase/kasmvnc:debianbookworm
 - Docker Hub: mdhmatt/libate
 - GitHub: MDHMatt/libate
-- Branch: dev
+- Branch: main (dev branch removed)
 
 **Recent Changes:**
+- **Simplified repository structure:**
+  - Removed `dev` branch - all work happens on `main`
+  - Simplified build workflow to single job
+  - Updated all automation to target `main` branch
 - **Fixed version management issues:**
   - Removed duplicate LIBATION_VERSION declarations in Dockerfile
   - Fixed check-libation-updates.yml to update correct ARG line
@@ -342,5 +343,5 @@ For issues related to:
 ---
 
 **Last Updated:** 2026-01-06
-**Document Version:** 1.1.0
+**Document Version:** 2.0.0
 **Repository Version:** Libation 13.1.1
