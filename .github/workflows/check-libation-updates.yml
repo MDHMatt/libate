@@ -10,58 +10,109 @@ on:
 jobs:
   check-updates:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-#        with:
-#          token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Get latest Libation release
         id: latest-release
         run: |
-          # Fetch the latest release from rmcrackan/Libation
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/rmcrackan/Libation/releases/latest | jq -r '.tag_name' | sed 's/v//')
+          # Fetch the latest release from rmcrackan/Libation with retry
+          for i in {1..3}; do
+            LATEST_RELEASE=$(curl -s -f https://api.github.com/repos/rmcrackan/Libation/releases/latest | jq -r '.tag_name' | sed 's/v//')
+            if [[ -n "$LATEST_RELEASE" && "$LATEST_RELEASE" != "null" ]]; then
+              break
+            fi
+            echo "::warning::API call failed, attempt $i of 3"
+            sleep 5
+          done
+
+          if [[ -z "$LATEST_RELEASE" || "$LATEST_RELEASE" == "null" ]]; then
+            echo "::error::Failed to fetch latest release after 3 attempts"
+            exit 1
+          fi
+
           echo "latest_version=$LATEST_RELEASE" >> $GITHUB_OUTPUT
-          echo "Latest Libation version: $LATEST_RELEASE"
-      
+          echo "::notice::Latest Libation version: $LATEST_RELEASE"
+
       - name: Get current version from build.yml
         id: current-version
         run: |
           CURRENT_VERSION=$(grep 'LIBATION_VERSION:' .github/workflows/build.yml | head -1 | awk '{print $2}')
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-          echo "Current version in workflow: $CURRENT_VERSION"
-      
+          echo "::notice::Current version in workflow: $CURRENT_VERSION"
+
+      - name: Verify .deb package exists
+        id: verify-package
+        run: |
+          LATEST="${{ steps.latest-release.outputs.latest_version }}"
+          # Check if amd64 package exists (primary architecture)
+          URL="https://github.com/rmcrackan/Libation/releases/download/v${LATEST}/Libation.${LATEST}-linux-chardonnay-amd64.deb"
+
+          if curl -s -f -I "$URL" > /dev/null; then
+            echo "::notice::✅ Package verified: $URL"
+            echo "package_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Package not found: $URL"
+            echo "::warning::Skipping update - .deb package may not be ready yet"
+            echo "package_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check for existing update PR
+        id: check-pr
+        run: |
+          LATEST="${{ steps.latest-release.outputs.latest_version }}"
+          # Check if PR already exists for this version
+          EXISTING_PR=$(gh pr list --state open --head "update/libation-$LATEST" --json number --jq '.[0].number' || echo "")
+
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "::notice::PR already exists for version $LATEST (#$EXISTING_PR)"
+            echo "pr_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "pr_exists=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Compare versions
         id: compare
         run: |
           LATEST="${{ steps.latest-release.outputs.latest_version }}"
           CURRENT="${{ steps.current-version.outputs.current_version }}"
-          
-          if [ "$LATEST" != "$CURRENT" ]; then
+          PACKAGE_EXISTS="${{ steps.verify-package.outputs.package_exists }}"
+          PR_EXISTS="${{ steps.check-pr.outputs.pr_exists }}"
+
+          if [ "$LATEST" != "$CURRENT" ] && [ "$PACKAGE_EXISTS" == "true" ] && [ "$PR_EXISTS" == "false" ]; then
             echo "update_needed=true" >> $GITHUB_OUTPUT
-            echo "Version mismatch detected: Current=$CURRENT, Latest=$LATEST"
+            echo "::notice::✅ Update needed: $CURRENT → $LATEST"
           else
             echo "update_needed=false" >> $GITHUB_OUTPUT
-            echo "Versions match, no update needed"
+            if [ "$LATEST" == "$CURRENT" ]; then
+              echo "::notice::Versions match, no update needed"
+            elif [ "$PACKAGE_EXISTS" == "false" ]; then
+              echo "::notice::Package not available yet, skipping"
+            elif [ "$PR_EXISTS" == "true" ]; then
+              echo "::notice::PR already exists, skipping"
+            fi
           fi
-      
+
       - name: Update build.yml
         if: steps.compare.outputs.update_needed == 'true'
         run: |
           LATEST="${{ steps.latest-release.outputs.latest_version }}"
           # Update LIBATION_VERSION in build.yml
           sed -i "s/LIBATION_VERSION: .*/LIBATION_VERSION: $LATEST/" .github/workflows/build.yml
-          echo "Updated build.yml with version $LATEST"
-      
+          echo "::notice::Updated build.yml with version $LATEST"
+
       - name: Update Dockerfile
         if: steps.compare.outputs.update_needed == 'true'
         run: |
           LATEST="${{ steps.latest-release.outputs.latest_version }}"
           # Update LIBATION_VERSION in Dockerfile
           sed -i "s/ARG LIBATION_VERSION=.*/ARG LIBATION_VERSION=$LATEST/" Dockerfile
-          echo "Updated Dockerfile with version $LATEST"
-      
+          echo "::notice::Updated Dockerfile with version $LATEST"
+
       - name: Create Pull Request
         if: steps.compare.outputs.update_needed == 'true'
         uses: peter-evans/create-pull-request@v8
@@ -81,7 +132,13 @@ jobs:
             **Current version:** ${{ steps.current-version.outputs.current_version }}
             **New version:** ${{ steps.latest-release.outputs.latest_version }}
 
+            **Verification:**
+            - ✅ .deb package verified to exist
+            - ✅ Automated update from upstream release
+
             This PR was automatically generated by the "Check Libation Updates" workflow.
+
+            **Release Notes:** https://github.com/rmcrackan/Libation/releases/tag/v${{ steps.latest-release.outputs.latest_version }}
           branch: update/libation-${{ steps.latest-release.outputs.latest_version }}
           base: main
           delete-branch: true
