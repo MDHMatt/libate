@@ -131,31 +131,36 @@ This repository implements **strict version synchronization**:
 
 ## Important Files Reference
 
-### Dockerfile (Container Build)
-**Current Version:** `LIBATION_VERSION=13.1.1` (line 14)
+### Dockerfile (Container Build - Fully Optimized)
+**Current Version:** `LIBATION_VERSION=13.1.1` (line 10)
 **Key Sections:**
-- Lines 1-15: Build arguments and version setup
-- Lines 17-30: Base image and directory creation
-- Lines 32-40: Configuration file placement
-- Lines 42-87: Dependency installation, Libation .deb download, setup
-- Lines 71-87: Aggressive cleanup for smaller image size (~50-100MB savings)
-- Line 90: Port exposure (3000)
+- Lines 1-10: Build arguments and version setup with optimization comments
+- Lines 12-26: Base image and directory creation
+- Lines 28-29: System configuration
+- Lines 31-40: Dependencies installation with BuildKit cache mounts
+- Lines 42-48: Libation download and install
+- Lines 50-56: Post-install configuration
+- Lines 58-60: Icon download
+- Lines 62-83: Aggressive cleanup layer (~100-150MB savings)
+- Lines 85-96: Config files copy and permissions (moved AFTER expensive operations)
+- Line 99: Port exposure (3000)
 
 **Architecture Detection:** Automatically detects `amd64`, `arm64`, etc. for proper .deb download
 
-**Image Optimization:**
-- Removes documentation, man pages, and localization files
-- Deletes .NET debug symbols (.pdb files) - saves 30-50MB
-- Removes XML documentation files
-- Cleans apt cache and temporary files
-- **Target size:** ~850-900MB (down from ~1GB)
+**Build Optimizations:**
+- **Layer caching:** Config files copied AFTER Libation install
+  - Config change rebuild: 30 seconds (was 10 minutes!)
+- **Split RUN commands:** 7 logical steps for better debugging
+- **BuildKit cache mounts:** Apt packages cached between builds (saves 1-2 min)
+- **Aggressive cleanup:** Removes docs, man pages, locales, .NET debug symbols
+  - Image size: ~750-850MB (was ~1GB, saves 150-250MB)
 
 **IMPORTANT - Single Source of Truth:**
-- Only ONE `ARG LIBATION_VERSION=X.Y.Z` declaration exists (line 14)
-- This is re-declared after FROM (line 18) to make it available in build stages
+- Only ONE `ARG LIBATION_VERSION=X.Y.Z` declaration exists (line 10)
+- This is re-declared after FROM (line 14) to make it available in build stages
 - No duplicate or conflicting version declarations
 
-**Critical:** The Renovate comment on line 13 enables automatic dependency tracking:
+**Critical:** The Renovate comment on line 9 enables automatic dependency tracking:
 ```dockerfile
 # renovate: datasource=github-releases depName=rmcrackan/Libation extractVersion=^v?(?<version>.*)$
 ```
