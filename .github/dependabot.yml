@@ -25,26 +25,24 @@ updates:
 #  - package-ecosystem: "docker" # Specify the package ecosystem (Docker)
     # Specify the target branch for updates
   - package-ecosystem: "docker"
-    directory: "/" # Look for a `Dockerfile` in the `root` directory
-    schedule: # Check for updates once a week
+    directory: "/"
+    schedule:
       interval: "daily"
-    target-branch: "dev" # specify the target branch to update here
-    open-pull-requests-limit: 5  # Limit the number of open PRs
-    commit-message: # Commit message prefix for updates
+    target-branch: "main"
+    open-pull-requests-limit: 5
+    commit-message:
       prefix: "update"
     allow:
       - dependency-type: "all"
 
 # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
-    # Workflow files stored in the default location of `.github/workflows`
-    # You don't need to specify `/.github/workflows` for `directory`. You can use `directory: "/"`.
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "dev" # specify the target branch to update here
-    open-pull-requests-limit: 5  # Limit the number of open PRs
-    commit-message: # Commit message prefix for updates
+    target-branch: "main"
+    open-pull-requests-limit: 5
+    commit-message:
       prefix: "update git-actions"
     allow:
       - dependency-type: "all" # Allow updates for all dependency types (e.g., direct and indirect dependencies)
