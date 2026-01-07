@@ -33,8 +33,8 @@ This repository does NOT contain application source code. It is a deployment and
 ├── Dockerfile                             # Multi-stage container build
 ├── compose.yml                            # Docker Compose orchestration
 ├── renovate.json                          # Renovate dependency management
-├── LICENSE                                # GPLv3 license file
-└── README.md                              # Basic project information
+├── LICENSE                                # GPLv3 license with explicit disclaimers
+└── README.md                              # Comprehensive project documentation
 ```
 
 ## Key Architecture Concepts
@@ -183,6 +183,31 @@ Contains default Libation settings:
 - Logging: Serilog with monthly rolling logs to `/config/Libation/logs`
 - Auto-scan enabled
 - Window positions and sizes for UI elements
+
+### LICENSE (Legal and Disclaimers)
+**License Type:** GPL-3.0 (maintains compatibility with upstream Libation)
+
+**IMPORTANT:** The LICENSE file includes a comprehensive preamble with explicit disclaimers:
+
+1. **Project Clarification:** Makes clear this is a Docker containerization project, NOT the official Libation application
+2. **Passion Project:** Identifies this as a personal passion project
+3. **NO RESPONSIBILITY:** Explicit statement that the author holds NO RESPONSIBILITY for any data loss, corruption, or damage
+4. **Backup Encouragement:** STRONGLY encourages users to maintain their own backups
+5. **Support Channels:** Directs users to appropriate support resources (MDHMatt/libate for container issues, rmcrackan/Libation for app issues)
+
+**Key Excerpt:**
+> "NO WARRANTY OR RESPONSIBILITY: This is a personal passion project provided
+> 'AS IS' without any warranty of any kind. The author holds NO RESPONSIBILITY
+> for any data loss, corruption, or damage that may occur from using this
+> Docker container. Use at your own risk."
+
+**Why This Matters:**
+- Protects the project maintainer from liability
+- Sets clear expectations for users
+- Emphasizes the importance of data backups
+- Maintains GPL-3.0 compatibility with upstream Libation
+
+**AI Assistant Note:** Never modify or remove these disclaimers without explicit user permission. They are critical legal protections.
 
 ## Common Development Tasks
 
