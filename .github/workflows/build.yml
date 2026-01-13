@@ -50,7 +50,12 @@ jobs:
             type=raw,value=${{ env.LIBATION_VERSION }},enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=,format=long
 
+      - name: Record build start time
+        id: start-time
+        run: echo "timestamp=$(date +%s)" >> $GITHUB_OUTPUT
+
       - name: Build and Push Docker Image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -71,6 +76,18 @@ jobs:
             org.opencontainers.image.version=${{ env.LIBATION_VERSION }}
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.revision=${{ github.sha }}
+          # Enable provenance attestations and SBOM for supply chain security
+          provenance: true
+          sbom: true
 
       - name: Image digest
-        run: echo ${{ steps.build.outputs.digest }}
+        run: echo "Image digest:" ${{ steps.build.outputs.digest }}
+
+      - name: Calculate build duration
+        run: |
+          END_TIME=$(date +%s)
+          START_TIME=${{ steps.start-time.outputs.timestamp }}
+          DURATION=$((END_TIME - START_TIME))
+          MINUTES=$((DURATION / 60))
+          SECONDS=$((DURATION % 60))
+          echo "⏱️ Build completed in ${MINUTES}m ${SECONDS}s"

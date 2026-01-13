@@ -91,9 +91,14 @@ COPY configs/menu.xml /defaults/menu.xml
 COPY configs/appsettings.json /config/Libation/appsettings.json
 COPY configs/Settings.json /config/Libation/Settings.json
 
-# Set final permissions and create symlinks
-RUN chown -R ${PUID}:${PGID} /config/Libation /config/Books && \
-    ln -s /config/Books /home/kasm-user/
+# Create symlink for easy access
+# Note: Runtime permissions are handled by lsiobase s6-overlay using PUID/PGID env vars
+RUN ln -s /config/Books /home/kasm-user/Books && \
+    chown -R abc:abc /config/Libation /config/Books /defaults
+
+# Health check: Verify KasmVNC is responding on port 3000
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD timeout 5 bash -c '</dev/tcp/localhost/3000' || exit 1
 
 # Expose KasmVNC port
 EXPOSE 3000
