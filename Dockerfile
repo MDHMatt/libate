@@ -7,7 +7,7 @@
 # - Aggressive cleanup for ~150MB size reduction
 
 # renovate: datasource=github-releases depName=rmcrackan/Libation extractVersion=^v?(?<version>.*)$
-ARG LIBATION_VERSION=13.1.2
+ARG LIBATION_VERSION=13.1.3
 
 FROM lsiobase/kasmvnc:debianbookworm
 
