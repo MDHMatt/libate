@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      workflows: write  # Required to update workflow files
 
     steps:
       - name: Checkout code
@@ -66,8 +67,8 @@ jobs:
         id: check-pr
         run: |
           LATEST="${{ steps.latest-release.outputs.latest_version }}"
-          # Check if PR already exists for this version (using claude/ prefix)
-          EXISTING_PR=$(gh pr list --state open --head "claude/auto-update-libation-$LATEST" --json number --jq '.[0].number' || echo "")
+          # Check if PR already exists for this version
+          EXISTING_PR=$(gh pr list --state open --head "update/libation-$LATEST" --json number --jq '.[0].number' || echo "")
 
           if [[ -n "$EXISTING_PR" ]]; then
             echo "::notice::PR already exists for version $LATEST (#$EXISTING_PR)"
@@ -105,8 +106,7 @@ jobs:
         run: |
           LATEST="${{ steps.latest-release.outputs.latest_version }}"
           CURRENT="${{ steps.current-version.outputs.current_version }}"
-          # Use claude/ prefix to comply with branch naming requirements
-          BRANCH="claude/auto-update-libation-$LATEST"
+          BRANCH="update/libation-$LATEST"
 
           # Configure git
           git config user.name "github-actions[bot]"

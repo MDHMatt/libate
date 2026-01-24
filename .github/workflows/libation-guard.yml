@@ -21,8 +21,8 @@ jobs:
       - name: Check if this is an automation PR
         id: check-automation
         run: |
-          # Skip if this is an auto-update PR branch
-          if [[ "${{ github.head_ref }}" == claude/auto-update-libation-* ]]; then
+          # Skip if this is an update PR branch
+          if [[ "${{ github.head_ref }}" == update/libation-* ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "::notice::Skipping version guard for automation PR"
           else
