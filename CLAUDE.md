@@ -60,7 +60,8 @@ This repository implements **strict version synchronization**:
 
 ### Branch Strategy
 - **`main`** - Production branch, builds and pushes Docker images automatically
-- **Feature branches** - Use `claude/` prefix for AI-generated branches (e.g., `claude/add-feature-abc123`)
+- **Feature branches** - Use `claude/` prefix for manual/AI-generated branches (e.g., `claude/add-feature-abc123`)
+- **Automated update branches** - Use `update/` prefix for workflow-generated branches (e.g., `update/libation-13.1.4`)
 
 ### CI/CD Pipeline
 
@@ -294,7 +295,8 @@ docker compose down
    ```
 
 4. **Respect Branch Strategy:**
-   - Feature branches must start with `claude/` prefix
+   - Manual/AI feature branches must start with `claude/` prefix
+   - Automated workflow branches use `update/` prefix (for version updates)
    - Push to designated branch (check task description)
    - Never push directly to `main` without permission
 
@@ -325,7 +327,6 @@ docker compose down
 3. **Architecture Assumptions:** Hardcoding `amd64` instead of using `$TARGETARCH`
 4. **Volume Paths:** Changing volume paths without updating Settings.json
 5. **Port Conflicts:** Exposing different ports in Dockerfile vs compose.yml
-6. **Git Operations:** Using branches without `claude/` prefix (will cause 403 on push)
 
 ### Git Push Retry Logic
 
@@ -338,7 +339,7 @@ git push -u origin claude/my-branch || sleep 4
 # ... etc
 ```
 
-**Branch Naming:** Must use format `claude/<description>-<session-id>` for successful push
+**Branch Naming (Manual/AI Branches):** Must use format `claude/<description>-<session-id>` for successful push. Automated workflow branches use `update/<prefix>-<version>` format.
 
 ### When to Ask for Clarification
 
