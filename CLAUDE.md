@@ -116,6 +116,43 @@ This repository implements **strict version synchronization**:
    - Create PR with branch `update/libation-<version>`
    - Label with `automation` and `dependencies`
 
+#### Workflow Architecture Decision: Why Three Separate Workflows?
+
+**Question:** Why not consolidate into one workflow file?
+
+**Answer:** Keeping workflows separate follows GitHub Actions best practices and provides significant advantages:
+
+**1. Security (Principle of Least Privilege)**
+- **build.yml:** Read-only permissions (secure by default)
+- **check-updates.yml:** Requires `workflows: write` (elevated permissions)
+- **libation-guard.yml:** Read-only permissions
+- **Consolidated:** Would require granting write permissions to all jobs (security risk)
+
+**2. Failure Isolation**
+- **Separate:** Build can succeed even if update check fails
+- **Consolidated:** One job failure marks entire workflow as failed
+- **Impact:** PR checks would fail even if build passes but guard warns
+
+**3. Clarity and Maintainability**
+- **Separate:** Each workflow has single, clear purpose
+- **Consolidated:** Complex conditional logic, harder to debug
+- **Developer Experience:** Easy to find relevant workflow for each task
+
+**4. Trigger Efficiency**
+- **Separate:** Each workflow runs only when needed
+  - Build: Every push/PR (immediate feedback)
+  - Updates: Daily at 2 AM (off-peak)
+  - Guard: Push/PR + weekly (enforcement)
+- **Consolidated:** Would run all jobs on every trigger (wasteful)
+
+**5. Concurrency Control**
+- **build.yml:** Cancels in-progress builds (fast iteration)
+- **check-updates.yml:** Never cancels (avoid interrupting PR creation)
+- **libation-guard.yml:** Quick check, cancellation okay
+- **Consolidated:** Can't have different concurrency strategies
+
+**Recommendation:** Keep workflows separate. If code duplication becomes an issue, use reusable workflows instead of consolidation.
+
 ### Dependency Management
 
 **Dependabot** (`.github/dependabot.yml`):
