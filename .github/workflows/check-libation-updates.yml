@@ -127,8 +127,28 @@ jobs:
           git add .github/workflows/build.yml Dockerfile
           git commit -m "chore: Update Libation to version $LATEST"
 
-          # Push branch
-          git push -u origin "$BRANCH"
+          # Push branch with retry logic (exponential backoff)
+          PUSH_SUCCESS=false
+          for attempt in 1 2 3 4; do
+            if git push -u origin "$BRANCH"; then
+              PUSH_SUCCESS=true
+              echo "::notice::✅ Branch pushed successfully"
+              break
+            else
+              if [ $attempt -lt 4 ]; then
+                DELAY=$((2 ** attempt))
+                echo "::warning::Push failed, attempt $attempt of 4. Retrying in ${DELAY}s..."
+                sleep $DELAY
+              else
+                echo "::error::Failed to push branch after 4 attempts"
+              fi
+            fi
+          done
+
+          if [ "$PUSH_SUCCESS" = false ]; then
+            echo "::error::Could not push branch. Check repository settings: Actions → Workflow permissions"
+            exit 1
+          fi
 
           # Create PR using GitHub CLI with heredoc for proper body formatting
           gh pr create \
