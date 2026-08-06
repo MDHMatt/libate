@@ -17,17 +17,22 @@ FROM rmcrackan/libation:${LIBATION_VERSION}
 
 USER root
 
-# curl for the hook script (jq ships in the upstream image already).
+# curl for the hook script (jq ships in the upstream image already); python3 for
+# the browser login helper - it must pty-drive LibationCli in-process, so it has
+# to live in THIS image (the alternative, a sidecar with docker-socket access,
+# is a far worse trade for a web-exposed service).
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
+    apt-get install -y --no-install-recommends curl ca-certificates python3-minimal && \
     rm -rf /var/lib/apt/lists/*
 
 COPY headless/sync-loop.sh /libation/sync-loop.sh
+COPY headless/login-web.py /libation/login-web.py
 # /config and /db must exist world-writable IN THE IMAGE: docker named volumes
 # inherit the image directory's ownership at creation, and deployments run as an
 # arbitrary uid (e.g. user: 1000:1000 to match CIFS uid-mapping) - without this
 # the volumes initialise root-owned and LibationCli cannot write its auth/db.
-RUN chmod 755 /libation/sync-loop.sh && mkdir -m777 -p /hooks /config /db
+RUN chmod 755 /libation/sync-loop.sh /libation/login-web.py && \
+    mkdir -m777 -p /hooks /config /db
 
 USER 1001
 
