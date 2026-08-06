@@ -16,6 +16,16 @@ INTERVAL="${SYNC_INTERVAL:-6h}"
 echo "[libation-sync] starting; interval=${INTERVAL}; accounts configured: $(LibationCli export --help >/dev/null 2>&1 && echo cli-ok)"
 
 while :; do
+  # Re-stage config from the PERSISTENT volume each cycle. Upstream's entrypoint
+  # only does this once at start, and it COPIES (only the DB is symlinked) - so an
+  # account added later (e.g. by the login web helper, which writes straight to
+  # /config via --libationFiles) would otherwise be invisible until a restart.
+  for f in AccountsSettings.json Settings.json; do
+    if [ -s "${LIBATION_CONFIG_DIR:-/config}/$f" ]; then
+      cp -f "${LIBATION_CONFIG_DIR:-/config}/$f" "${LIBATION_CONFIG_INTERNAL:-/config-internal}/$f" 2>/dev/null || true
+    fi
+  done
+
   echo "[libation-sync] $(date -Is) scan starting (all accounts)"
   LibationCli scan || echo "[libation-sync] WARN: scan failed (rc=$?)"
 
