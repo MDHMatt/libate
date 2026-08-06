@@ -31,4 +31,13 @@ RUN chmod 755 /libation/sync-loop.sh && mkdir -m777 -p /hooks /config /db
 
 USER 1001
 
-ENTRYPOINT ["/libation/sync-loop.sh"]
+# Keep UPSTREAM's entrypoint (/libation/liberate.sh): its main() stages
+# AccountsSettings.json + Settings.json from /config into /config-internal,
+# applies the master key, points Books at /data and sets up the database - then,
+# because a command is passed, it execs THAT instead of its own liberate loop
+# ("run that instead of the liberate loop so the environment is still set up").
+# So our loop inherits a fully-initialised environment. Overriding the
+# entrypoint outright skips the staging and LibationCli dies with
+# "Cannot find settings files at /config-internal/Settings.json".
+ENTRYPOINT ["/libation/liberate.sh"]
+CMD ["/libation/sync-loop.sh"]
