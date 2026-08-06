@@ -85,7 +85,11 @@ jobs:
         with:
           context: .
           file: Dockerfile.headless
-          platforms: linux/amd64,linux/arm64
+          # amd64 ONLY: this variant is deployed on CT 101 (amd64) and nothing else,
+          # and cross-building it added an apt install (python3-minimal for the login
+          # helper) under QEMU arm64 emulation - which ground for 15 min and got the
+          # job cancelled (2026-08-06). The GUI image above stays multi-arch.
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:headless
