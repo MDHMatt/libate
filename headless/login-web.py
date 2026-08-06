@@ -128,7 +128,7 @@ def finish_login(token: str, response_url: str) -> tuple[bool, str]:
     return ok, out[-1500:]
 
 
-def list_accounts() -> str:
+def list_accounts_raw() -> str:
     try:
         res = subprocess.run(
             [LIBATION_CLI, "list-accounts", "--libationFiles", LIBATION_FILES],
@@ -137,6 +137,49 @@ def list_accounts() -> str:
         return (res.stdout or "") + (res.stderr or "")
     except Exception as exc:  # noqa: BLE001 - surface anything to the page
         return f"(could not list accounts: {exc})"
+
+
+def accounts_table() -> str:
+    """Render list-accounts as a real HTML table.
+
+    LibationCli prints a Unicode box-drawing table; dumping that into <pre> wraps
+    and looks broken on narrow screens, so parse the │-delimited rows out of it.
+    Falls back to a <pre> block if the format ever changes.
+    """
+    raw = list_accounts_raw()
+    rows: list[list[str]] = []
+    for line in raw.splitlines():
+        if "│" not in line:
+            continue
+        cells = [c.strip() for c in line.strip().strip("│").split("│")]
+        if any(cells):
+            rows.append(cells)
+    if not rows:
+        body = html.escape(raw.strip()) or "No accounts configured yet."
+        return f"<p>{body}</p>"
+
+    header, *data = rows
+    width = len(header)
+    out = ["<table><thead><tr>"]
+    out += [f"<th>{html.escape(c)}</th>" for c in header]
+    out.append("</tr></thead><tbody>")
+    if not data:
+        out.append(f'<tr><td colspan="{width}">No accounts configured yet.</td></tr>')
+    for r in data:
+        r = (r + [""] * width)[:width]
+        out.append("<tr>")
+        for i, c in enumerate(r):
+            low = c.lower()
+            # Highlight the yes/no columns (Scan library, Authenticated) - an
+            # unauthenticated account is the thing you actually need to act on.
+            if header[i].strip().lower() in {"authenticated", "scan library"} and low in {"yes", "no"}:
+                cls = "yes" if low == "yes" else "no"
+                out.append(f'<td class="{cls}">{html.escape(c)}</td>')
+            else:
+                out.append(f"<td>{html.escape(c) or '&mdash;'}</td>")
+        out.append("</tr>")
+    out.append("</tbody></table>")
+    return "".join(out)
 
 
 PAGE = """<!doctype html><meta charset=utf-8>
@@ -149,6 +192,11 @@ PAGE = """<!doctype html><meta charset=utf-8>
  button{{margin-top:1rem;padding:.6rem 1.1rem;font:inherit;border:0;border-radius:6px;
         background:#2d6cdf;color:#fff;cursor:pointer}}
  pre{{background:#f4f4f4;padding:.75rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap}}
+ table{{width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.95rem}}
+ th,td{{text-align:left;padding:.45rem .6rem;border-bottom:1px solid #e0e0e0}}
+ th{{font-weight:600;background:#f4f4f4}}
+ td.yes{{color:#137333;font-weight:600}} td.no{{color:#b3261e;font-weight:600}}
+ .wrap{{overflow-x:auto}}
  .step{{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:1rem 0}}
  .ok{{color:#137333}} .err{{color:#b3261e}}
  a.big{{display:inline-block;margin:.5rem 0;font-size:1.05rem;word-break:break-all}}
@@ -156,13 +204,15 @@ PAGE = """<!doctype html><meta charset=utf-8>
    body{{background:#16181c;color:#e6e6e6}} pre{{background:#23262b}}
    input,textarea{{background:#23262b;color:#e6e6e6;border-color:#555}}
    .step{{border-color:#39383d}}
+   th{{background:#23262b}} th,td{{border-bottom-color:#39383d}}
+   td.yes{{color:#6dd58c}} td.no{{color:#f28b82}}
  }}
 </style>
 <h1>Libation - add an Audible account</h1>
 {body}
 <div class=step>
 <h2 style="font-size:1.1rem">Configured accounts</h2>
-<pre>{accounts}</pre>
+<div class=wrap>{accounts}</div>
 </div>
 """
 
@@ -207,7 +257,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def _page(self, body: str, code: int = 200) -> None:
-        self._send(PAGE.format(body=body, accounts=html.escape(list_accounts())), code)
+        self._send(PAGE.format(body=body, accounts=accounts_table()), code)
 
     def _form(self) -> dict[str, str]:
         length = int(self.headers.get("Content-Length", "0") or 0)
