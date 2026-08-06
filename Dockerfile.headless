@@ -23,7 +23,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY headless/sync-loop.sh /libation/sync-loop.sh
-RUN chmod 755 /libation/sync-loop.sh && mkdir -p /hooks
+# /config and /db must exist world-writable IN THE IMAGE: docker named volumes
+# inherit the image directory's ownership at creation, and deployments run as an
+# arbitrary uid (e.g. user: 1000:1000 to match CIFS uid-mapping) - without this
+# the volumes initialise root-owned and LibationCli cannot write its auth/db.
+RUN chmod 755 /libation/sync-loop.sh && mkdir -m777 -p /hooks /config /db
 
 USER 1001
 
