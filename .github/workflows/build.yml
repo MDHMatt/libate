@@ -55,6 +55,7 @@ jobs:
             type=sha,prefix=,format=long
 
       - name: Build and Push Docker Image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -72,6 +73,30 @@ jobs:
           annotations: |
             org.opencontainers.image.title=Libate
             org.opencontainers.image.description=Libation in Docker with KasmVNC
+            org.opencontainers.image.version=${{ env.LIBATION_VERSION }}
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      # Headless variant: the official upstream LibationCli image + our sync loop
+      # (Dockerfile.headless). Same single-sourced version - passed as a build-arg,
+      # which also pins the upstream FROM tag (rmcrackan/libation:<version>).
+      - name: Build and Push Headless Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.headless
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:headless
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:headless-${{ env.LIBATION_VERSION }}
+          build-args: |
+            LIBATION_VERSION=${{ env.LIBATION_VERSION }}
+          cache-from: type=gha,scope=headless
+          cache-to: type=gha,mode=max,scope=headless
+          annotations: |
+            org.opencontainers.image.title=Libate Headless
+            org.opencontainers.image.description=Official Libation CLI image + sync loop with post-cycle hook
             org.opencontainers.image.version=${{ env.LIBATION_VERSION }}
             org.opencontainers.image.source=${{ github.repositoryUrl }}
             org.opencontainers.image.revision=${{ github.sha }}
