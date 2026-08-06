@@ -1,0 +1,30 @@
+# Headless variant: the OFFICIAL upstream Libation image (LibationCli, no GUI)
+# plus a sync loop with a post-cycle hook point. Used by the `libation-sync`
+# Arcane stack in the mdhmedia repo: scan all configured Audible accounts,
+# liberate new books straight into the Audiobookshelf library layout, then run
+# /hooks/post-sync.sh (bind-mounted by the stack) to reconcile AudioBookRequest
+# and trigger an ABS scan.
+#
+# The version is single-sourced from the ARG below; the check-libation-updates
+# workflow bumps the GUI Dockerfile's ARG and build.yml applies the same version
+# here, so both variants track upstream together. Upstream publishes matching
+# version tags (verified: 13.7.5, 13.7.4, ...).
+
+# renovate: datasource=docker depName=rmcrackan/libation
+ARG LIBATION_VERSION=13.7.5
+
+FROM rmcrackan/libation:${LIBATION_VERSION}
+
+USER root
+
+# curl for the hook script (jq ships in the upstream image already).
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY headless/sync-loop.sh /libation/sync-loop.sh
+RUN chmod 755 /libation/sync-loop.sh && mkdir -p /hooks
+
+USER 1001
+
+ENTRYPOINT ["/libation/sync-loop.sh"]
