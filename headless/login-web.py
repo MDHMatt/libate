@@ -26,6 +26,7 @@ import pty
 import re
 import secrets
 import signal
+import sqlite3
 import subprocess
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -128,6 +129,41 @@ def finish_login(token: str, response_url: str) -> tuple[bool, str]:
     return ok, out[-1500:]
 
 
+def book_counts() -> dict[str, dict[str, int]]:
+    """Per-account {books, downloaded, pending} from Libation's database.
+
+    The accounts table alone can't answer "did that account actually import
+    anything?" - which is the question you have right after adding one. Read-only,
+    and any failure degrades to an empty dict so the page still renders.
+    """
+    db = os.environ.get("LIBATION_DB", "/db/LibationContext.db")
+    if not os.path.exists(db):
+        return {}
+    try:
+        # Read-only URI + short timeout: never block the page on Libation's writes.
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=5)
+        rows = con.execute(
+            "SELECT lb.Account, "
+            "       COUNT(*), "
+            "       SUM(CASE WHEN u.BookStatus = 1 THEN 1 ELSE 0 END) "
+            "FROM LibraryBooks lb "
+            "JOIN UserDefinedItem u ON u.BookId = lb.BookId "
+            "GROUP BY lb.Account"
+        ).fetchall()
+        con.close()
+    except Exception:  # noqa: BLE001 - the page must render regardless
+        return {}
+    out: dict[str, dict[str, int]] = {}
+    for account, total, done in rows:
+        done = int(done or 0)
+        out[str(account).strip().lower()] = {
+            "books": int(total or 0),
+            "downloaded": done,
+            "pending": int(total or 0) - done,
+        }
+    return out
+
+
 def list_accounts_raw() -> str:
     try:
         res = subprocess.run(
@@ -159,26 +195,50 @@ def accounts_table() -> str:
         return f"<p>{body}</p>"
 
     header, *data = rows
+    counts = book_counts()
+    # Append the library columns - the accounts table alone can't tell you whether
+    # an account actually imported anything.
+    header = header + ["Books", "Downloaded", "Pending"]
     width = len(header)
     out = ["<table><thead><tr>"]
     out += [f"<th>{html.escape(c)}</th>" for c in header]
     out.append("</tr></thead><tbody>")
     if not data:
         out.append(f'<tr><td colspan="{width}">No accounts configured yet.</td></tr>')
+    totals = {"books": 0, "downloaded": 0, "pending": 0}
     for r in data:
+        acct = (r[0] if r else "").strip().lower()
+        c = counts.get(acct, {})
+        if c:
+            for k in totals:
+                totals[k] += c.get(k, 0)
+        r = r + [str(c.get("books", "-")), str(c.get("downloaded", "-")), str(c.get("pending", "-"))]
         r = (r + [""] * width)[:width]
         out.append("<tr>")
-        for i, c in enumerate(r):
-            low = c.lower()
+        for i, cell in enumerate(r):
+            low = cell.lower()
+            col = header[i].strip().lower()
             # Highlight the yes/no columns (Scan library, Authenticated) - an
             # unauthenticated account is the thing you actually need to act on.
-            if header[i].strip().lower() in {"authenticated", "scan library"} and low in {"yes", "no"}:
+            if col in {"authenticated", "scan library"} and low in {"yes", "no"}:
                 cls = "yes" if low == "yes" else "no"
-                out.append(f'<td class="{cls}">{html.escape(c)}</td>')
+                out.append(f'<td class="{cls}">{html.escape(cell)}</td>')
+            elif col == "pending" and cell.isdigit() and int(cell) > 0:
+                out.append(f'<td class="no">{html.escape(cell)}</td>')
+            elif col == "downloaded" and cell.isdigit() and int(cell) > 0:
+                out.append(f'<td class="yes">{html.escape(cell)}</td>')
             else:
-                out.append(f"<td>{html.escape(c) or '&mdash;'}</td>")
+                out.append(f"<td>{html.escape(cell) or '&mdash;'}</td>")
         out.append("</tr>")
+    if len(data) > 1 and totals["books"]:
+        out.append(f'<tr><td colspan="{width - 3}"><strong>Total</strong></td>'
+                   f'<td><strong>{totals["books"]}</strong></td>'
+                   f'<td><strong>{totals["downloaded"]}</strong></td>'
+                   f'<td><strong>{totals["pending"]}</strong></td></tr>')
     out.append("</tbody></table>")
+    if not counts:
+        out.append('<p style="font-size:.85rem;color:#777">(library counts unavailable - '
+                   'database not readable yet)</p>')
     return "".join(out)
 
 
