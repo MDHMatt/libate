@@ -61,7 +61,7 @@ jobs:
       # its own rather than blind. Dependabot keeps offering v7.
       - name: Build and Push Docker Image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           # Build for multiple platforms
@@ -86,7 +86,7 @@ jobs:
       # (Dockerfile.headless). Same single-sourced version - passed as a build-arg,
       # which also pins the upstream FROM tag (rmcrackan/libation:<version>).
       - name: Build and Push Headless Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.headless
