@@ -15,18 +15,36 @@ jobs:
   guard:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+
+      # The two Dockerfiles must pin the SAME Libation version. Automation bumps
+      # only Dockerfile; if a hand edit or a stray Renovate PR moves one and not
+      # the other, CI-built images stay correct (build.yml passes a single derived
+      # build-arg) but a standalone `docker build -f Dockerfile.headless` would use
+      # a stale default. Assert they match so drift can never merge.
+      - name: Dockerfile version defaults must match
+        run: |
+          gui=$(sed -n 's/^ARG LIBATION_VERSION=//p' Dockerfile | head -1 | tr -d '"\r ')
+          hl=$(sed -n 's/^ARG LIBATION_VERSION=//p' Dockerfile.headless | head -1 | tr -d '"\r ')
+          echo "::notice::Dockerfile=$gui  Dockerfile.headless=$hl"
+          if [ "$gui" != "$hl" ]; then
+            echo "::error::LIBATION_VERSION differs: Dockerfile=$gui vs Dockerfile.headless=$hl"
+            exit 1
+          fi
 
       # Skip guard for version update PRs (avoid catch-22)
       - name: Check if this is an automation PR
         id: check-automation
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          # Skip if this is an update PR branch
-          if [[ "${{ github.head_ref }}" == update/libation-* ]]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
+          # Skip if this is an update PR branch (pass head_ref via env, not inline,
+          # to avoid script injection - actionlint enforces this).
+          if [[ "$HEAD_REF" == update/libation-* ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "::notice::Skipping version guard for automation PR"
           else
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - id: pinned
@@ -50,7 +68,7 @@ jobs:
         run: |
           latest=$(curl -fsSL -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/rmcrackan/Libation/releases/latest | jq -r .tag_name)
-          echo "version=${latest#v}" >> $GITHUB_OUTPUT
+          echo "version=${latest#v}" >> "$GITHUB_OUTPUT"
           echo "::notice::Latest upstream version: ${latest#v}"
 
       - name: Enforce newest

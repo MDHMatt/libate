@@ -1,0 +1,11 @@
+# Ruff config for the stdlib Python helper (headless/login-web.py).
+# Selection = ruff's defaults (E4/E7/E9/F) plus W, N and BLE, because the file's
+# inline suppressions only mean something with those enabled: `# noqa: N802`
+# (do_GET/do_POST are the BaseHTTPRequestHandler API, not our naming choice) and
+# `# noqa: BLE001` (deliberate broad excepts so the page always renders). E501
+# line-length is intentionally NOT enforced - the file inlines CSS/SQL.
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E4", "E7", "E9", "F", "W", "N", "BLE"]

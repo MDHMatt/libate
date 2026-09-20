@@ -1,13 +1,17 @@
-networks:
-  internal:
-    driver: bridge
 services:
-    libation:
-        image: mdhmatt/libate:latest
-        container_name: libation
-        stop_grace_period: 1m
-        restart: on-failure
-        ports: "3000:3000"
-        volumes:
-            - './Books:/config/Books'
-            - './data:/config/Libation'
+  libation:
+    image: mdhmatt/libate:latest
+    container_name: libation
+    stop_grace_period: 1m
+    restart: on-failure
+    # `ports` must be a sequence, not a scalar - `docker compose config` rejects
+    # the scalar form (services.libation.ports must be an array).
+    ports:
+      - "3000:3000"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - ./Books:/config/Books
+      - ./data:/config/Libation

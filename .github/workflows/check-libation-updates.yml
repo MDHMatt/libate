@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get latest Libation release
         id: latest-release
@@ -40,7 +40,7 @@ jobs:
             exit 1
           fi
 
-          echo "latest_version=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+          echo "latest_version=$LATEST_RELEASE" >> "$GITHUB_OUTPUT"
           echo "::notice::Latest Libation version: $LATEST_RELEASE"
 
       - name: Get current version from build.yml
@@ -48,7 +48,7 @@ jobs:
         run: |
           # The Dockerfile ARG is the single source of truth for the pinned version.
           CURRENT_VERSION=$(sed -n 's/^ARG LIBATION_VERSION=//p' Dockerfile | head -1)
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
           echo "::notice::Current version in workflow: $CURRENT_VERSION"
 
       - name: Verify .deb package exists
@@ -60,11 +60,11 @@ jobs:
 
           if curl -s -f -I "$URL" > /dev/null; then
             echo "::notice::✅ Package verified: $URL"
-            echo "package_exists=true" >> $GITHUB_OUTPUT
+            echo "package_exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Package not found: $URL"
             echo "::warning::Skipping update - .deb package may not be ready yet"
-            echo "package_exists=false" >> $GITHUB_OUTPUT
+            echo "package_exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Check for existing update PR
@@ -76,9 +76,9 @@ jobs:
 
           if [[ -n "$EXISTING_PR" ]]; then
             echo "::notice::PR already exists for version $LATEST (#$EXISTING_PR)"
-            echo "pr_exists=true" >> $GITHUB_OUTPUT
+            echo "pr_exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "pr_exists=false" >> $GITHUB_OUTPUT
+            echo "pr_exists=false" >> "$GITHUB_OUTPUT"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
@@ -92,10 +92,10 @@ jobs:
           PR_EXISTS="${{ steps.check-pr.outputs.pr_exists }}"
 
           if [ "$LATEST" != "$CURRENT" ] && [ "$PACKAGE_EXISTS" == "true" ] && [ "$PR_EXISTS" == "false" ]; then
-            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "update_needed=true" >> "$GITHUB_OUTPUT"
             echo "::notice::✅ Update needed: $CURRENT → $LATEST"
           else
-            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
             if [ "$LATEST" == "$CURRENT" ]; then
               echo "::notice::Versions match, no update needed"
             elif [ "$PACKAGE_EXISTS" == "false" ]; then
@@ -119,14 +119,15 @@ jobs:
           # Create and checkout new branch
           git checkout -b "$BRANCH"
 
-          # Update LIBATION_VERSION in the Dockerfile - the ONLY place it lives.
-          # (build.yml derives it from here; never sed workflow files from this job,
-          # the default GITHUB_TOKEN cannot push changes to .github/workflows/.)
-          sed -i "s/ARG LIBATION_VERSION=.*/ARG LIBATION_VERSION=$LATEST/" Dockerfile
-          echo "::notice::Updated Dockerfile with version $LATEST"
+          # Update LIBATION_VERSION in BOTH Dockerfiles - they must stay in lockstep
+          # (libation-guard asserts they match). build.yml derives the version from
+          # Dockerfile; never sed workflow files from this job - the default
+          # GITHUB_TOKEN cannot push changes to .github/workflows/.
+          sed -i "s/^ARG LIBATION_VERSION=.*/ARG LIBATION_VERSION=$LATEST/" Dockerfile Dockerfile.headless
+          echo "::notice::Updated Dockerfile + Dockerfile.headless with version $LATEST"
 
           # Commit changes
-          git add Dockerfile
+          git add Dockerfile Dockerfile.headless
           git commit -m "chore: Update Libation to version $LATEST"
 
           # Push branch with retry logic (exponential backoff)
@@ -165,7 +166,7 @@ jobs:
           Updates Libation to the latest available version.
 
           **Changes:**
-          - Updated \`LIBATION_VERSION\` in \`Dockerfile\` (build.yml derives it from there)
+          - Updated \`LIBATION_VERSION\` in \`Dockerfile\` and \`Dockerfile.headless\` (build.yml derives it from Dockerfile)
 
           **Current version:** $CURRENT
           **New version:** $LATEST
