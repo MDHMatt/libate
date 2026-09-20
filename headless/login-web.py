@@ -20,7 +20,6 @@ it only relays the post-login URL.
 from __future__ import annotations
 
 import html
-import json
 import os
 import pty
 import re
@@ -200,8 +199,8 @@ def accounts_table() -> str:
     # an account actually imported anything.
     header = header + ["Books", "Downloaded", "Pending"]
     width = len(header)
-    out = ["<table><thead><tr>"]
-    out += [f"<th>{html.escape(c)}</th>" for c in header]
+    out = ["<table><caption>Configured Audible accounts</caption><thead><tr>"]
+    out += [f'<th scope="col">{html.escape(c)}</th>' for c in header]
     out.append("</tr></thead><tbody>")
     if not data:
         out.append(f'<tr><td colspan="{width}">No accounts configured yet.</td></tr>')
@@ -216,6 +215,10 @@ def accounts_table() -> str:
         r = (r + [""] * width)[:width]
         out.append("<tr>")
         for i, cell in enumerate(r):
+            if i == 0:
+                # The account column identifies the row (WCAG 1.3.1 / H63).
+                out.append(f'<th scope="row">{html.escape(cell) or "&mdash;"}</th>')
+                continue
             low = cell.lower()
             col = header[i].strip().lower()
             # Highlight the yes/no columns (Scan library, Authenticated) - an
@@ -237,71 +240,91 @@ def accounts_table() -> str:
                    f'<td><strong>{totals["pending"]}</strong></td></tr>')
     out.append("</tbody></table>")
     if not counts:
-        out.append('<p style="font-size:.85rem;color:#777">(library counts unavailable - '
+        out.append('<p class=muted>(library counts unavailable - '
                    'database not readable yet)</p>')
     return "".join(out)
 
 
-PAGE = """<!doctype html><meta charset=utf-8>
-<meta name=viewport content="width=device-width,initial-scale=1">
+PAGE = """<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Libation - add Audible account</title>
 <style>
  body{{font-family:system-ui,sans-serif;max-width:44rem;margin:2rem auto;padding:0 1rem;line-height:1.5}}
  h1{{font-size:1.4rem}} label{{display:block;margin:.75rem 0 .25rem;font-weight:600}}
- input,textarea{{width:100%;padding:.5rem;font:inherit;border:1px solid #999;border-radius:6px}}
+ /* Border contrast: #767676 clears 3:1 on white / #8b8f96 clears 3:1 on the dark
+    input background (WCAG 1.4.11 Non-text Contrast). */
+ input,textarea{{width:100%;padding:.5rem;font:inherit;border:1px solid #767676;border-radius:6px}}
  button{{margin-top:1rem;padding:.6rem 1.1rem;font:inherit;border:0;border-radius:6px;
         background:#2d6cdf;color:#fff;cursor:pointer}}
  pre{{background:#f4f4f4;padding:.75rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap}}
  table{{width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.95rem}}
+ caption{{text-align:left;font-weight:600;padding:.25rem 0}}
  th,td{{text-align:left;padding:.45rem .6rem;border-bottom:1px solid #e0e0e0}}
  th{{font-weight:600;background:#f4f4f4}}
  td.yes{{color:#137333;font-weight:600}} td.no{{color:#b3261e;font-weight:600}}
  .wrap{{overflow-x:auto}}
  .step{{border:1px solid #ddd;border-radius:8px;padding:1rem;margin:1rem 0}}
+ a{{color:#1a56db}}
  .ok{{color:#137333}} .err{{color:#b3261e}}
+ /* Muted helper text: #595959 is 7:1 on white (AAA); themed for dark. */
+ .muted{{color:#595959;font-size:.9rem}}
  a.big{{display:inline-block;margin:.5rem 0;font-size:1.05rem;word-break:break-all}}
  @media (prefers-color-scheme:dark){{
    body{{background:#16181c;color:#e6e6e6}} pre{{background:#23262b}}
-   input,textarea{{background:#23262b;color:#e6e6e6;border-color:#555}}
+   input,textarea{{background:#23262b;color:#e6e6e6;border-color:#8b8f96}}
    .step{{border-color:#39383d}}
    th{{background:#23262b}} th,td{{border-bottom-color:#39383d}}
    td.yes{{color:#6dd58c}} td.no{{color:#f28b82}}
+   a{{color:#8ab4f8}} .ok{{color:#6dd58c}} .err{{color:#f28b82}}
+   .muted{{color:#a9adb3}}
  }}
 </style>
+</head>
+<body>
+<main>
 <h1>Libation - add an Audible account</h1>
 {body}
 <div class=step>
 <h2 style="font-size:1.1rem">Configured accounts</h2>
 <div class=wrap>{accounts}</div>
 </div>
+</main>
+</body>
+</html>
 """
 
 STEP1 = """<div class=step>
 <form method=post action=/start>
 <label for=email>Audible / Amazon email</label>
-<input id=email name=email type=email required placeholder="someone@example.com">
+<input id=email name=email type=email required autocomplete="email" inputmode="email"
+ aria-describedby="email-err" placeholder="someone@example.com">
 <label for=locale>Marketplace</label>
-<input id=locale name=locale value=uk required>
+<input id=locale name=locale value=uk required autocomplete="off">
 <button type=submit>Get sign-in link</button>
 </form>
-<p style="font-size:.9rem;color:#777">Repeat once per family account. You sign in on
+<p class=muted>Repeat once per family account. You sign in on
 Amazon's own page - this helper never sees your password.</p>
 </div>"""
 
 
 def step2(url: str, token: str) -> str:
     return f"""<div class=step>
-<p><strong>1.</strong> Open this link, sign in to Amazon/Audible, and complete any 2FA:</p>
-<a class=big href="{html.escape(url)}" target=_blank rel=noopener>{html.escape(url[:110])}...</a>
-<p><strong>2.</strong> You will land on a page that may look like an error - that is expected.
-Copy the <em>whole URL from your browser's address bar</em> and paste it below.</p>
+<ol>
+<li>Open this link, sign in to Amazon/Audible, and complete any 2FA:<br>
+<a class=big href="{html.escape(url)}" target=_blank rel="noopener">{html.escape(url[:110])}...</a></li>
+<li>You will land on a page that may look like an error - that is expected.
+Copy the <em>whole URL from your browser's address bar</em> and paste it below:
 <form method=post action=/finish>
 <input type=hidden name=token value="{html.escape(token)}">
 <label for=response>Final URL after signing in</label>
 <textarea id=response name=response rows=4 required
  placeholder="https://www.amazon.co.uk/ap/maplanding?openid...."></textarea>
 <button type=submit>Finish sign-in</button>
-</form>
+</form></li>
+</ol>
 </div>"""
 
 
@@ -338,7 +361,9 @@ class Handler(BaseHTTPRequestHandler):
             email = (form.get("email") or "").strip()
             locale = (form.get("locale") or "uk").strip()
             if not email:
-                self._page("<p class=err>Email is required.</p>" + STEP1, 400)
+                # role=alert announces it; id ties it to the email input's
+                # aria-describedby (WCAG 3.3.1 / 4.1.2).
+                self._page('<p class=err role=alert id=email-err>Email is required.</p>' + STEP1, 400)
                 return
             url, token_or_err = start_login(email, locale)
             if not url:

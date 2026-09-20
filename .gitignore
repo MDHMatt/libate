@@ -1,0 +1,11 @@
+# Runtime data materialised by the documented quick-start (compose volumes)
+Books/
+data/
+
+# Python helper (headless/login-web.py) local runs
+.venv/
+__pycache__/
+*.pyc
+
+# Logs
+*.log

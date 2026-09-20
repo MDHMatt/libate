@@ -1,0 +1,4 @@
+# These scripts run in Linux containers - keep LF in the repo regardless of the
+# committer's OS, so a Windows checkout can never commit CRLF into a bash script
+# (which would break `#!/bin/bash` and every command at runtime).
+* text=auto eol=lf

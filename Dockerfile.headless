@@ -10,7 +10,11 @@
 # here, so both variants track upstream together. Upstream publishes matching
 # version tags (verified: 13.7.5, 13.7.4, ...).
 
-# renovate: datasource=docker depName=rmcrackan/libation
+# Same annotation as the GUI Dockerfile so renovate.json's single rule
+# (rmcrackan/Libation, github-releases) covers both and they never get separate
+# bump PRs; the check-libation-updates workflow seds both files in lockstep and
+# libation-guard asserts they match.
+# renovate: datasource=github-releases depName=rmcrackan/Libation extractVersion=^v?(?<version>.*)$
 ARG LIBATION_VERSION=13.7.5
 
 FROM rmcrackan/libation:${LIBATION_VERSION}
@@ -34,7 +38,8 @@ COPY headless/login-web.py /libation/login-web.py
 # arbitrary uid (e.g. user: 1000:1000 to match CIFS uid-mapping) - without this
 # the volumes initialise root-owned and LibationCli cannot write its auth/db.
 RUN chmod 755 /libation/sync-loop.sh /libation/login-web.py && \
-    mkdir -m777 -p /hooks /config /db
+    mkdir -p /hooks /config /db && \
+    chmod 777 /hooks /config /db
 
 USER 1001
 

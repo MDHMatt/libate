@@ -1,33 +1,54 @@
-# Libate - Libation Docker Container
+# Libate — Libation in Docker
 
 [![Docker Hub](https://img.shields.io/docker/pulls/mdhmatt/libate?style=flat-square)](https://hub.docker.com/r/mdhmatt/libate)
 [![Docker Image Size](https://img.shields.io/docker/image-size/mdhmatt/libate/latest?style=flat-square)](https://hub.docker.com/r/mdhmatt/libate)
+[![GitHub release](https://img.shields.io/github/v/release/MDHMatt/libate?style=flat-square)](https://github.com/MDHMatt/libate/releases)
 [![GitHub](https://img.shields.io/github/license/MDHMatt/libate?style=flat-square)](LICENSE)
 
-A Docker container for [Libation](https://github.com/rmcrackan/Libation) - the Audible audiobook library manager - with web-based VNC access powered by KasmVNC.
+Docker packaging for [Libation](https://github.com/rmcrackan/Libation) — the Audible audiobook library
+manager. Two image variants are published to [`mdhmatt/libate`](https://hub.docker.com/r/mdhmatt/libate):
+a **headless** CLI/sync image and a **GUI** desktop image served over web VNC.
 
-## 🎯 What is Libate?
+## 🔢 Versions
 
-Libate packages the Libation application in a Docker container with remote desktop access, allowing you to:
-- **Manage your Audible library** from any device with a web browser
-- **Run Libation on headless servers** without a physical display
-- **Access your audiobooks remotely** through a secure web interface
-- **Organize and backup** your Audible collection
+Libate has **two independent version numbers** — keep them separate:
 
-## ✨ Features
+| Version | What it is | Where it lives |
+| --- | --- | --- |
+| **libate release** (e.g. `v1.0.0`) | This repository's own [SemVer](https://semver.org) — the *packaging*: Dockerfiles, scripts, CI, docs. | Git tags · [GitHub Releases](https://github.com/MDHMatt/libate/releases) · [`CHANGELOG.md`](CHANGELOG.md) |
+| **Libation version** (e.g. `13.7.5`) | The upstream [Libation](https://github.com/rmcrackan/Libation) app version an image bundles. | Docker **image tags** + the `LIBATION_VERSION` build arg |
 
-- 🌐 **Web-based VNC access** on port 3000 - no VNC client needed
-- 🏗️ **Multi-architecture support** - `amd64` and `arm64`
-- 📦 **Optimized image size** - ~850MB with aggressive cleanup
-- 🔄 **Automated version updates** - Always stays current with latest Libation releases
-- 🛡️ **User/Group ID mapping** - Proper file permissions with PUID/PGID
-- 💾 **Persistent storage** - Your library and settings survive container restarts
+A Libation bump is a libate patch/minor; a change to the container contract is the SemVer bump it warrants
+on its own. Example: **libate `v1.0.0` packages Libation `13.7.5`.**
 
-## 🚀 Quick Start
+### Image tags
 
-### Using Docker Compose (Recommended)
+| Tag | Variant | Contents |
+| --- | --- | --- |
+| `mdhmatt/libate:latest` | GUI | Newest GUI/KasmVNC build from `main` |
+| `mdhmatt/libate:<libation-version>` — e.g. `:13.7.5` | GUI | GUI build pinned to that Libation version |
+| `mdhmatt/libate:headless` | Headless | Newest headless build from `main` |
+| `mdhmatt/libate:headless-<libation-version>` — e.g. `:headless-13.7.5` | Headless | Headless build pinned to that Libation version |
 
-1. Create a `compose.yml` file:
+The current Libation version is pinned in [`Dockerfile`](Dockerfile) (`ARG LIBATION_VERSION`) and tracked
+automatically against upstream — see the [Docker Hub tags](https://hub.docker.com/r/mdhmatt/libate/tags).
+
+## 🧭 Which variant?
+
+| | **Headless** (`:headless`) | **GUI** (`:latest`) |
+| --- | --- | --- |
+| Use it for | Automated, unattended liberation on a server | Interactive use / managing settings with the real Libation desktop UI |
+| Base | Official `rmcrackan/libation` CLI | `lsiobase/kasmvnc` (Debian + KasmVNC) |
+| Interface | A sync loop + an optional browser login helper | Web VNC on port 3000 |
+| Architectures | amd64 | amd64 + arm64 |
+
+---
+
+## 🖥️ GUI variant (`:latest`)
+
+Libation's desktop UI in a container, reachable from any browser over web VNC — no VNC client needed.
+
+### Quick start (Docker Compose)
 
 ```yaml
 services:
@@ -42,152 +63,110 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
+      - TZ=Europe/London
     restart: on-failure
 ```
 
-2. Start the container:
-
 ```bash
-docker compose up -d
+docker compose up -d   # then open http://localhost:3000
 ```
 
-3. Access Libation in your browser:
+(A ready-to-use [`compose.yml`](compose.yml) is in the repo.)
 
-```
-http://localhost:3000
-```
-
-### Using Docker CLI
+### Docker CLI
 
 ```bash
 docker run -d \
   --name=libation \
   -p 3000:3000 \
-  -v $(pwd)/Books:/config/Books \
-  -v $(pwd)/data:/config/Libation \
-  -e PUID=1000 \
-  -e PGID=1000 \
+  -v "$(pwd)/Books:/config/Books" \
+  -v "$(pwd)/data:/config/Libation" \
+  -e PUID=1000 -e PGID=1000 -e TZ=Europe/London \
   --restart on-failure \
   mdhmatt/libate:latest
 ```
 
-## 📋 Configuration
-
-### Environment Variables
+### Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PUID` | `1000` | User ID for file permissions |
 | `PGID` | `1000` | Group ID for file permissions |
+| `TZ` | — | Container timezone (e.g. `Europe/London`) |
 
-### Volumes
-
-| Container Path | Description |
+| Container path | Description |
 |----------------|-------------|
-| `/config/Books` | Your audiobook library storage |
+| `/config/Books` | Audiobook library storage |
 | `/config/Libation` | Libation application data and settings |
-
-### Ports
 
 | Port | Description |
 |------|-------------|
 | `3000` | KasmVNC web interface |
 
-## 🔧 Advanced Configuration
+---
 
-### Custom User/Group IDs
+## 🤖 Headless variant (`:headless`)
 
-To match your host user permissions:
+The official upstream LibationCli image plus a **sync loop** and an **optional browser login helper** — for
+unattended liberation on a server, with a post-cycle hook for downstream integrations.
 
-```bash
-docker run -d \
-  -e PUID=$(id -u) \
-  -e PGID=$(id -g) \
-  ...
-  mdhmatt/libate:latest
-```
+- **Sync loop** (`headless/sync-loop.sh`): each cycle re-stages config, scans every configured Audible
+  account, liberates new books, then runs `/hooks/post-sync.sh` if one is mounted. `SYNC_INTERVAL` sets the
+  sleep between cycles (`-1` = run once and exit).
+- **Post-sync hook**: bind-mount your own `/hooks/post-sync.sh` to trigger downstream work (e.g. an
+  Audiobookshelf scan) without rebuilding the image.
+- **Adding accounts** — either the CLI (`docker exec -it <container> LibationCli login-external`) or the
+  browser helper `headless/login-web.py` (drives the login under a pty; renders an accounts table with
+  per-account book counts).
 
-### Persistent Configuration
+> ⚠️ **The login helper has no authentication of its own** and binds `0.0.0.0:8099`. Anyone who can reach it
+> can add or list Audible accounts. **Only expose it behind an authenticating reverse proxy / SSO gate** —
+> never publish `:8099` directly. It never sees your Amazon password (you sign in on Amazon's own page).
 
-The container stores configuration in `/config/Libation`:
-- `Settings.json` - Application settings
-- `appsettings.json` - .NET configuration
-- `logs/` - Application logs
+---
 
-Mount this directory to preserve settings across container updates.
+## 🔄 Automated version updates
 
-## 📚 Documentation
+A daily workflow checks for new Libation releases, verifies the `.deb` exists, and opens an update PR; a
+guard workflow keeps `main` on the newest upstream version and both Dockerfiles in lockstep. See
+[`CHANGELOG.md`](CHANGELOG.md) for released versions.
 
-- **Upstream Libation:** https://github.com/rmcrackan/Libation
-- **Libation Wiki:** https://github.com/rmcrackan/Libation/wiki
-- **Docker Hub:** https://hub.docker.com/r/mdhmatt/libate
-
-## 🔄 Version Updates
-
-This repository automatically tracks Libation releases:
-- **Daily checks** for new versions
-- **Automated PRs** when updates are available
-- **Version enforcement** ensures latest version is always used
-
-Current Version: **13.1.1**
-
-## 🛠️ Building from Source
+## 🛠️ Building from source
 
 ```bash
-# Clone the repository
 git clone https://github.com/MDHMatt/libate.git
 cd libate
 
-# Build the image
+# GUI image
 docker build -t libate:local .
 
-# Run your local build
-docker run -d -p 3000:3000 libate:local
+# Headless image
+docker build -f Dockerfile.headless -t libate:headless-local .
 ```
 
 ## 🐛 Troubleshooting
 
-### Container won't start
-Check logs:
-```bash
-docker logs libation
-```
-
-### Permission issues with mounted volumes
-Ensure PUID/PGID match your host user:
-```bash
-id -u  # Your user ID
-id -g  # Your group ID
-```
-
-### Can't access web interface
-1. Verify container is running: `docker ps`
-2. Check port binding: `docker port libation`
-3. Ensure port 3000 isn't blocked by firewall
+- **Container won't start:** `docker logs libation`
+- **Permission issues on volumes:** ensure `PUID`/`PGID` match your host user (`id -u`, `id -g`)
+- **Can't reach the GUI:** verify the container is running (`docker ps`), the port binding
+  (`docker port libation`), and that port 3000 isn't firewalled
 
 ## 🤝 Contributing
 
-Contributions welcome! This is a containerization project - for Libation application issues, see the [upstream repository](https://github.com/rmcrackan/Libation).
-
-### Repository Structure
-- `Dockerfile` - Optimized multi-stage build
-- `.github/workflows/` - Automated CI/CD pipelines
-- `configs/` - Default configuration files
-- `CLAUDE.md` - Comprehensive development documentation
+Contributions welcome — this is a containerisation project; for Libation application issues see the
+[upstream repository](https://github.com/rmcrackan/Libation). Agent/contributor conventions live in
+[`AGENTS.md`](AGENTS.md).
 
 ## 📝 License
 
-This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) file for details.
+GPLv3 — see [LICENSE](LICENSE).
 
 ## 🙏 Credits
 
-- **Libation** - [rmcrackan/Libation](https://github.com/rmcrackan/Libation)
-- **Base Image** - [linuxserver.io KasmVNC](https://hub.docker.com/r/lsiobase/kasmvnc)
-
-## ⚠️ Disclaimer
-
-This is an unofficial Docker container for Libation. For official support, please visit the [Libation project](https://github.com/rmcrackan/Libation).
+- **Libation** — [rmcrackan/Libation](https://github.com/rmcrackan/Libation)
+- **GUI base image** — [linuxserver.io KasmVNC](https://hub.docker.com/r/lsiobase/kasmvnc)
 
 ---
 
-**Made with ❤️ for the audiobook community**
+*Unofficial Docker packaging for Libation. For official support, see the
+[Libation project](https://github.com/rmcrackan/Libation).*

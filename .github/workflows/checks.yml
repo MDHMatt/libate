@@ -1,0 +1,60 @@
+# Static-analysis gate: lints and syntax-checks everything this repo actually
+# ships, on every push and PR, with no manual step. Two past self-inflicted
+# breakages (an invalid `workflows:` permission scope and a column-0 heredoc that
+# silently disabled a workflow) are exactly what actionlint catches.
+#
+# What this gate CANNOT run, and must stay a manual/live check: a real container
+# smoke test - LibationCli, the KasmVNC desktop, and the pty-driven browser-login
+# flow all need a live container, a browser and real Audible credentials.
+#
+# Tool versions are pinned and were checked current at source on 2026-09-20.
+name: checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: actionlint (workflows; uses the runner's shellcheck for run-blocks)
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+
+      - name: shellcheck (shipped shell scripts)
+        run: shellcheck headless/sync-loop.sh configs/autostart
+
+      - name: ruff + py_compile (login helper)
+        run: |
+          python3 -m pip install --quiet ruff==0.15.9
+          python3 -m ruff check headless/login-web.py
+          python3 -m py_compile headless/login-web.py
+
+      - name: hadolint (both Dockerfiles; reads .hadolint.yaml)
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/hadolint \
+            https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-Linux-x86_64
+          sudo chmod +x /usr/local/bin/hadolint
+          hadolint Dockerfile Dockerfile.headless
+
+      - name: compose config
+        run: docker compose -f compose.yml config -q
+
+      - name: validate JSON config files
+        run: |
+          for f in configs/appsettings.json configs/Settings.json renovate.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1])); print('ok', sys.argv[1])" "$f"
+          done

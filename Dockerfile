@@ -25,8 +25,8 @@ RUN mkdir -p /defaults \
     /config/Libation/logs \
     /config/Libation/tmp
 
-# Configure system settings
-RUN echo fs.inotify.max_user_instances=524288 | tee -a /etc/sysctl.conf
+# Configure system settings (plain redirect, not `| tee` - no pipe, no DL4006)
+RUN echo 'fs.inotify.max_user_instances=524288' >> /etc/sysctl.conf
 
 # Install system dependencies with BuildKit cache mount
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \

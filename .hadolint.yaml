@@ -1,0 +1,22 @@
+# hadolint baseline for both Dockerfiles. Real findings are fixed in the files;
+# the rules below are excluded deliberately, each with a reason (per the
+# quality-gate approach: justify exclusions, don't blanket-suppress).
+ignored:
+  # DL3008 - pin apt package versions. Impractical here: the GUI base is the
+  # rolling lsiobase/kasmvnc:debianbookworm tag, so Debian's apt versions move
+  # with it and a pin would break the build the moment the base updates. The one
+  # dependency that matters (Libation) is pinned via ARG + Renovate.
+  - DL3008
+  # DL3015 (info) - --no-install-recommends. The flagged line is the `apt-get
+  # install -f -y` broken-dependency FIX after `dpkg -i`, not a package install;
+  # the real installs already use --no-install-recommends.
+  - DL3015
+  # DL3066 (info) - non-numeric USER. `USER root` is required to run apt in the
+  # build stage of the headless image; the image drops to a numeric UID (1001)
+  # for runtime.
+  - DL3066
+  # DL3059 (info) - consecutive RUN instructions. The GUI Dockerfile splits RUNs
+  # ON PURPOSE (documented at its top): config-file copies land AFTER the
+  # expensive Libation install so a config change rebuilds in ~30s instead of
+  # invalidating the install layer. Consolidating would defeat that.
+  - DL3059
