@@ -15,7 +15,7 @@
 # bump PRs; the check-libation-updates workflow seds both files in lockstep and
 # libation-guard asserts they match.
 # renovate: datasource=github-releases depName=rmcrackan/Libation extractVersion=^v?(?<version>.*)$
-ARG LIBATION_VERSION=13.7.5
+ARG LIBATION_VERSION=14.2.2
 
 FROM rmcrackan/libation:${LIBATION_VERSION}
 
