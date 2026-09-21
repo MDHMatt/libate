@@ -54,14 +54,14 @@ jobs:
             type=raw,value=${{ env.LIBATION_VERSION }},enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,prefix=,format=long
 
-      # Other actions bumped to current majors 2026-09-20 (checkout v7, setup-qemu
-      # v4, setup-buildx v4, login v4, metadata v6). build-push-action is held at
-      # v6 deliberately: v7 changes provenance/SBOM attestation defaults on the
-      # PUSHED image, and PR CI never pushes - so that bump is measured/merged on
-      # its own rather than blind. Dependabot keeps offering v7.
+      # All actions on current majors (checked at source 2026-09; build-push v7 added
+      # 2026-09-21). v7's only breaking change is the Node 24 default runtime (fine on
+      # ubuntu-latest); it does NOT change the pushed image. Validated with secrets on a
+      # branch PR before merge - Dependabot PRs cannot build because the DOCKERHUB_USERNAME
+      # secret is withheld from them (which malforms the image tag), unrelated to the version.
       - name: Build and Push Docker Image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           # Build for multiple platforms
@@ -86,7 +86,7 @@ jobs:
       # (Dockerfile.headless). Same single-sourced version - passed as a build-arg,
       # which also pins the upstream FROM tag (rmcrackan/libation:<version>).
       - name: Build and Push Headless Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.headless
