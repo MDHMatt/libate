@@ -13,6 +13,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-21
+
+### Changed
+- **Libation 13.7.5 → 14.2.2** (major upstream release). Both image variants now package
+  14.2.2; both Dockerfiles bumped in lockstep (the version guard asserts they match). The
+  libate container contract (ports, volumes, env, image tags) is unchanged, so this is a
+  libate minor bump. Clears the ~month-old backlog of unmerged upstream bumps (#47–#59).
+
 ## [1.0.0] - 2026-09-20
 
 First tagged release. Packages **Libation 13.7.5**. Two image variants are published to
@@ -63,5 +71,6 @@ tagged releases, a static-analysis CI gate, an accessible (WCAG 2.2 AA) web logi
 - Docs: `CLAUDE.md` / `README` corrected — they claimed Libation 13.1.1 (actual 13.7.5) and described only
   the GUI container.
 
-[Unreleased]: https://github.com/MDHMatt/libate/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/MDHMatt/libate/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/MDHMatt/libate/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MDHMatt/libate/releases/tag/v1.0.0
