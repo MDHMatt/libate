@@ -13,6 +13,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-22
+
 ### Security
 - **`login-web.py` hardening** (closes #61) — the request-body read is capped at 64 KiB and an
   oversized/malformed `Content-Length` is rejected with 413 + connection close, so it can no longer
@@ -82,6 +84,7 @@ tagged releases, a static-analysis CI gate, an accessible (WCAG 2.2 AA) web logi
 - Docs: `CLAUDE.md` / `README` corrected — they claimed Libation 13.1.1 (actual 13.7.5) and described only
   the GUI container.
 
-[Unreleased]: https://github.com/MDHMatt/libate/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/MDHMatt/libate/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/MDHMatt/libate/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/MDHMatt/libate/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MDHMatt/libate/releases/tag/v1.0.0
