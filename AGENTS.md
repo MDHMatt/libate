@@ -32,7 +32,9 @@ users.
   writes to the persistent `/config` via `--libationFiles`. **Security contract: it binds `0.0.0.0:8099`
   with NO authentication of its own** — anyone who can reach it can add/list accounts. It MUST sit behind
   the SSO gate (the homelab's Caddy config). It never sees an Amazon password (you log in on Amazon's own
-  page); it only relays the post-login URL. `LOGIN_WEB_PORT` overrides the port.
+  page); it only relays the post-login URL. `LOGIN_WEB_BIND` (default `0.0.0.0`) and `LOGIN_WEB_PORT`
+  (default `8099`) override the bind address and port; the request body is capped at 64 KiB, the session
+  map is thread-locked, and login success is judged by LibationCli's exit status.
 
 ## The two version numbers — do not conflate them
 
@@ -115,9 +117,8 @@ the guard), and security changes (user permissions, network, secrets).
 
 ## Known follow-ups
 
-- **`login-web.py` hardening** (tracked, deferred): make the bind address an env var (keep `0.0.0.0` as the
-  container default) + document that `:8099` must never be published without the SSO gate; cap the
-  request-body read; guard the shared `pending` session dict with a `threading.Lock`; replace the fragile
-  `"error"/"fail"` substring success heuristic with the child's exit status.
 - **GUI base image** is the rolling `lsiobase/kasmvnc:debianbookworm` tag — digest-pin it so Dependabot can
   bump it, and record the Debian 12 → 13 (`debiantrixie`) evaluation date.
+
+(The `login-web.py` hardening — bind config, body cap, session lock, exit-status success check — landed in
+the Unreleased changelog / issue #61.)
