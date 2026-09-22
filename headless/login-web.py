@@ -13,9 +13,11 @@ deliberately dumb: two POSTs, an in-memory session map, no database.
 Writes go to LIBATION_FILES (default /config) - the PERSISTENT volume - via
 --libationFiles, NOT the ephemeral /config-internal staging copy.
 
-Protect it behind the SSO gate: anyone who can reach it can add or list
-accounts. It never sees an Amazon password (you log in on Amazon's own page);
-it only relays the post-login URL.
+Protect it behind the SSO gate: it binds LOGIN_WEB_BIND (default 0.0.0.0) with no
+authentication of its own, so anyone who can reach LOGIN_WEB_PORT (default 8099)
+can add or list accounts - NEVER publish that port without the SSO gate in front.
+It never sees an Amazon password (you log in on Amazon's own page); it only relays
+the post-login URL.
 """
 from __future__ import annotations
 
@@ -27,37 +29,74 @@ import secrets
 import signal
 import sqlite3
 import subprocess
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
 LIBATION_CLI = os.environ.get("LIBATION_CLI", "/libation/LibationCli")
 LIBATION_FILES = os.environ.get("LIBATION_FILES", "/config")
+# Default 0.0.0.0 so the SSO reverse proxy (a separate host) can reach it; set to
+# 127.0.0.1 only when a proxy is co-located. Either way it MUST sit behind SSO.
+BIND_ADDRESS = os.environ.get("LOGIN_WEB_BIND", "0.0.0.0")
 PORT = int(os.environ.get("LOGIN_WEB_PORT", "8099"))
 SESSION_TTL = 900  # 15 min to complete a login before the child is reaped
+# The forms are tiny (email + locale, or a token + one URL); anything larger is
+# rejected before it is read, so a bogus Content-Length cannot exhaust memory.
+MAX_BODY = 64 * 1024
 
 URL_RE = re.compile(rb"https://\S*amazon\S*")
 # pending[token] = {"pid": int, "fd": int, "started": float, "email": str}
+# Mutated from multiple request threads (ThreadingHTTPServer) - guard every dict
+# access with _lock. The lock protects ONLY the dict, never the blocking pty I/O.
 pending: dict[str, dict] = {}
+_lock = threading.Lock()
 
 
 def reap_stale() -> None:
     now = time.time()
-    for token, s in list(pending.items()):
-        if now - s["started"] > SESSION_TTL:
-            _kill(s)
+    with _lock:
+        stale = [(t, s) for t, s in pending.items() if now - s["started"] > SESSION_TTL]
+        for token, _ in stale:
             pending.pop(token, None)
+    for _, s in stale:
+        _kill(s)  # outside the lock: it waitpid()s, which can block briefly
 
 
 def _kill(session: dict) -> None:
+    """SIGKILL the child, reap it (no zombies), and close the pty."""
     try:
         os.kill(session["pid"], signal.SIGKILL)
     except (ProcessLookupError, PermissionError):
         pass
     try:
+        os.waitpid(session["pid"], 0)
+    except (ChildProcessError, OSError):
+        pass
+    try:
         os.close(session["fd"])
     except OSError:
         pass
+
+
+def _reap(pid: int, grace: float = 5.0) -> int | None:
+    """Wait up to `grace`s for the child to exit; return its exit code, or None
+    if it did not exit cleanly (signalled, vanished, or had to be killed)."""
+    deadline = time.time() + grace
+    while time.time() < deadline:
+        try:
+            wpid, status = os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            return None
+        if wpid == pid:
+            return os.WEXITSTATUS(status) if os.WIFEXITED(status) else None
+        time.sleep(0.1)
+    try:
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)
+    except OSError:
+        pass
+    return None
 
 
 def start_login(email: str, locale: str) -> tuple[str | None, str]:
@@ -91,7 +130,8 @@ def start_login(email: str, locale: str) -> tuple[str | None, str]:
         m = URL_RE.search(buf)
         if m:
             token = secrets.token_urlsafe(16)
-            pending[token] = {"pid": pid, "fd": fd, "started": time.time(), "email": email}
+            with _lock:
+                pending[token] = {"pid": pid, "fd": fd, "started": time.time(), "email": email}
             return m.group(0).decode(errors="replace").rstrip(), token
 
     _kill({"pid": pid, "fd": fd})
@@ -99,10 +139,11 @@ def start_login(email: str, locale: str) -> tuple[str | None, str]:
 
 
 def finish_login(token: str, response_url: str) -> tuple[bool, str]:
-    session = pending.pop(token, None)
+    with _lock:
+        session = pending.pop(token, None)
     if not session:
         return False, "Session expired or unknown - start again."
-    fd = session["fd"]
+    pid, fd = session["pid"], session["fd"]
     try:
         os.write(fd, response_url.strip().encode() + b"\n")
     except OSError as exc:
@@ -111,6 +152,7 @@ def finish_login(token: str, response_url: str) -> tuple[bool, str]:
 
     buf = b""
     deadline = time.time() + 90
+    hit_eof = False
     while time.time() < deadline:
         try:
             chunk = os.read(fd, 4096)
@@ -120,12 +162,22 @@ def finish_login(token: str, response_url: str) -> tuple[bool, str]:
         except OSError:
             break
         if not chunk:
+            hit_eof = True  # child closed the pty = it exited
             break
         buf += chunk
-    _kill(session)
-    out = buf.decode(errors="replace")
-    ok = "error" not in out.lower() and "fail" not in out.lower()
-    return ok, out[-1500:]
+
+    # Success is the child's EXIT STATUS, not a scan of its output for "error" /
+    # "fail" (which the old check flipped on benign strings like "0 errors").
+    if hit_eof:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        ok = _reap(pid) == 0
+    else:
+        _kill(session)  # timed out with the child still running
+        ok = False
+    return ok, buf.decode(errors="replace")[-1500:]
 
 
 def book_counts() -> dict[str, dict[str, int]]:
@@ -342,9 +394,19 @@ class Handler(BaseHTTPRequestHandler):
     def _page(self, body: str, code: int = 200) -> None:
         self._send(PAGE.format(body=body, accounts=accounts_table()), code)
 
-    def _form(self) -> dict[str, str]:
-        length = int(self.headers.get("Content-Length", "0") or 0)
-        data = self.rfile.read(length).decode()
+    def _content_length(self) -> int:
+        """Declared body length, or -1 if it is malformed or over MAX_BODY."""
+        raw = self.headers.get("Content-Length")
+        if raw is None:
+            return 0
+        try:
+            length = int(raw)
+        except ValueError:
+            return -1
+        return length if 0 <= length <= MAX_BODY else -1
+
+    def _form(self, length: int) -> dict[str, str]:
+        data = self.rfile.read(length).decode(errors="replace")
         return {k: v[0] for k, v in parse_qs(data).items()}
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
@@ -356,7 +418,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
         reap_stale()
-        form = self._form()
+        length = self._content_length()
+        if length < 0:
+            # Oversized/malformed body: reject without reading it, and close the
+            # connection so the unread bytes can't be parsed as a second request.
+            self.close_connection = True
+            self._page("<p class=err role=alert>Request too large or malformed.</p>" + STEP1, 413)
+            return
+        form = self._form(length)
         if self.path.startswith("/start"):
             email = (form.get("email") or "").strip()
             locale = (form.get("locale") or "uk").strip()
@@ -386,5 +455,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"[login-web] serving on :{PORT}, libationFiles={LIBATION_FILES}", flush=True)
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    print(f"[login-web] serving on {BIND_ADDRESS}:{PORT}, libationFiles={LIBATION_FILES}", flush=True)
+    ThreadingHTTPServer((BIND_ADDRESS, PORT), Handler).serve_forever()
