@@ -117,7 +117,18 @@ unattended liberation on a server, with a post-cycle hook for downstream integra
   Audiobookshelf scan) without rebuilding the image.
 - **Adding accounts** — either the CLI (`docker exec -it <container> LibationCli login-external`) or the
   browser helper `headless/login-web.py` (drives the login under a pty; renders an accounts table with
-  per-account book counts).
+   per-account book counts). **Re-authenticate** asks for confirmation, signs the selected account
+   out of Libation, then opens a fresh browser-login flow even if its old tokens looked valid.
+   Sign in to the same Amazon account and paste the final URL back. This does not sign out your
+   Amazon browser session or revoke other devices. Failed/cancelled login leaves the account signed
+   out and retryable. Books, account preferences and other accounts are retained.
+   A mode-0600 `AccountsSettings.json.bak-<timestamp>-<random>` recovery copy is saved in the
+   persistent config directory before sign-out. It contains credentials: never share or commit it.
+   For recovery, stop the helper and sync processes, then restore the chosen copy with
+   `cp -p -- /config/AccountsSettings.json.bak-<timestamp>-<random> /config/AccountsSettings.json`
+   as the config owner, and restart. Restoring the whole file also restores other accounts to that
+   point in time. Only one helper login runs at a time; do not run external account-editing CLI
+   commands during it. An already-running sync retains its in-memory credentials until its next cycle.
 
 > ⚠️ **The login helper has no authentication of its own** and binds `0.0.0.0:8099`. Anyone who can reach it
 > can add or list Audible accounts. **Only expose it behind an authenticating reverse proxy / SSO gate** —

@@ -21,7 +21,9 @@ the post-login URL.
 """
 from __future__ import annotations
 
+import errno
 import html
+import json
 import os
 import pty
 import re
@@ -30,7 +32,9 @@ import signal
 import sqlite3
 import subprocess
 import threading
+import tempfile
 import time
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
 
@@ -51,6 +55,52 @@ URL_RE = re.compile(rb"https://\S*amazon\S*")
 # access with _lock. The lock protects ONLY the dict, never the blocking pty I/O.
 pending: dict[str, dict] = {}
 _lock = threading.Lock()
+_start_lock = threading.Lock()
+REAUTH_CSRF = secrets.token_urlsafe(32)
+
+
+def sign_out(email: str, locale: str) -> str:
+    path = Path(LIBATION_FILES) / "AccountsSettings.json"
+    original = path.read_bytes()
+    document = json.loads(original.decode("utf-8-sig"))
+    accounts = document.get("Accounts") if isinstance(document, dict) else None
+    if not isinstance(accounts, list):
+        raise ValueError("Unsupported account file; nothing was changed.")
+    matches = [account for account in accounts if isinstance(account, dict)
+               and str(account.get("AccountId", "")).casefold() == email.casefold()
+               and isinstance(account.get("IdentityTokens"), dict)
+               and account["IdentityTokens"].get("LocaleName") == locale]
+    if len(matches) != 1:
+        raise ValueError("The selected account changed or is ambiguous; reload the account list.")
+    metadata = path.stat()
+    backup = path.with_name(path.name + ".bak-" + time.strftime("%Y-%m-%d-%H%M%S")
+                            + "-" + secrets.token_hex(4))
+    backup_fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(backup_fd, "wb") as stream:
+        os.fchown(stream.fileno(), metadata.st_uid, metadata.st_gid)
+        stream.write(original)
+        stream.flush()
+        os.fsync(stream.fileno())
+    matches[0]["IdentityTokens"] = {
+        "LocaleName": locale,
+        "ExistingAccessToken": {"TokenValue": "Atna|", "Expires": "0001-01-01T00:00:00"},
+        "PrivateKey": None, "AdpToken": None, "RefreshToken": None, "Cookies": [],
+    }
+    descriptor, temporary = tempfile.mkstemp(prefix=".reauth-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            os.fchown(stream.fileno(), metadata.st_uid, metadata.st_gid)
+            os.fchmod(stream.fileno(), metadata.st_mode & 0o777)
+            stream.write(json.dumps(document, ensure_ascii=True, indent=2).encode() + b"\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        if path.read_bytes() != original:
+            raise ValueError("Accounts changed during sign-out; nothing was replaced. Retry.")
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+    return backup.name
 
 
 def reap_stale() -> None:
@@ -159,7 +209,9 @@ def finish_login(token: str, response_url: str) -> tuple[bool, str]:
         except BlockingIOError:
             time.sleep(0.3)
             continue
-        except OSError:
+        except OSError as exc:
+            if exc.errno == errno.EIO:
+                hit_eof = True
             break
         if not chunk:
             hit_eof = True  # child closed the pty = it exited
@@ -249,7 +301,8 @@ def accounts_table() -> str:
     counts = book_counts()
     # Append the library columns - the accounts table alone can't tell you whether
     # an account actually imported anything.
-    header = header + ["Books", "Downloaded", "Pending"]
+    original_header = [cell.strip().lower() for cell in header]
+    header = header + ["Books", "Downloaded", "Pending", "Sign-in"]
     width = len(header)
     out = ["<table><caption>Configured Audible accounts</caption><thead><tr>"]
     out += [f'<th scope="col">{html.escape(c)}</th>' for c in header]
@@ -258,13 +311,14 @@ def accounts_table() -> str:
         out.append(f'<tr><td colspan="{width}">No accounts configured yet.</td></tr>')
     totals = {"books": 0, "downloaded": 0, "pending": 0}
     for r in data:
+        account_fields = dict(zip(original_header, r))
         acct = (r[0] if r else "").strip().lower()
         c = counts.get(acct, {})
         if c:
             for k in totals:
                 totals[k] += c.get(k, 0)
         r = r + [str(c.get("books", "-")), str(c.get("downloaded", "-")), str(c.get("pending", "-"))]
-        r = (r + [""] * width)[:width]
+        r = (r + [""] * (width - 1))[:width - 1]
         out.append("<tr>")
         for i, cell in enumerate(r):
             if i == 0:
@@ -284,12 +338,26 @@ def accounts_table() -> str:
                 out.append(f'<td class="yes">{html.escape(cell)}</td>')
             else:
                 out.append(f"<td>{html.escape(cell) or '&mdash;'}</td>")
+        email = account_fields.get("account id", "")
+        locale = account_fields.get("locale", "")
+        authenticated = account_fields.get("authenticated", "").lower()
+        if email and locale and authenticated in {"yes", "no"}:
+            out.append(
+                '<td><form method="post" action="/reauth-confirm">'
+                f'<input type="hidden" name="email" value="{html.escape(email)}">'
+                f'<input type="hidden" name="locale" value="{html.escape(locale)}">'
+                '<button type="submit" '
+                f'aria-label="Re-authenticate {html.escape(email)} ({html.escape(locale)})">'
+                'Re-authenticate</button></form></td>'
+            )
+        else:
+            out.append('<td>Already signed in</td>' if authenticated == "yes" else '<td>Unavailable</td>')
         out.append("</tr>")
     if len(data) > 1 and totals["books"]:
-        out.append(f'<tr><td colspan="{width - 3}"><strong>Total</strong></td>'
+        out.append(f'<tr><td colspan="{width - 4}"><strong>Total</strong></td>'
                    f'<td><strong>{totals["books"]}</strong></td>'
                    f'<td><strong>{totals["downloaded"]}</strong></td>'
-                   f'<td><strong>{totals["pending"]}</strong></td></tr>')
+                   f'<td><strong>{totals["pending"]}</strong></td><td></td></tr>')
     out.append("</tbody></table>")
     if not counts:
         out.append('<p class=muted>(library counts unavailable - '
@@ -302,14 +370,15 @@ PAGE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Libation - add Audible account</title>
+<meta name="robots" content="noindex,nofollow">
+<title>Libation - Audible account sign-in</title>
 <style>
  body{{font-family:system-ui,sans-serif;max-width:44rem;margin:2rem auto;padding:0 1rem;line-height:1.5}}
  h1{{font-size:1.4rem}} label{{display:block;margin:.75rem 0 .25rem;font-weight:600}}
  /* Border contrast: #767676 clears 3:1 on white / #8b8f96 clears 3:1 on the dark
     input background (WCAG 1.4.11 Non-text Contrast). */
  input,textarea{{width:100%;padding:.5rem;font:inherit;border:1px solid #767676;border-radius:6px}}
- button{{margin-top:1rem;padding:.6rem 1.1rem;font:inherit;border:0;border-radius:6px;
+ button{{min-height:44px;margin-top:1rem;padding:.6rem 1.1rem;font:inherit;border:0;border-radius:6px;
         background:#2d6cdf;color:#fff;cursor:pointer}}
  pre{{background:#f4f4f4;padding:.75rem;border-radius:6px;overflow-x:auto;white-space:pre-wrap}}
  table{{width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.95rem}}
@@ -337,11 +406,14 @@ PAGE = """<!doctype html>
 </head>
 <body>
 <main>
-<h1>Libation - add an Audible account</h1>
+<h1>Libation - manage Audible sign-ins</h1>
 {body}
 <div class=step>
 <h2 style="font-size:1.1rem">Configured accounts</h2>
-<div class=wrap>{accounts}</div>
+<p>Re-authenticate signs the selected account out of Libation, then starts a fresh Amazon
+sign-in. Its email and marketplace are filled in automatically. Existing books are kept.</p>
+<p class=muted>Authenticated reflects saved credentials, not a live Amazon check.</p>
+<div class=wrap tabindex="0" role="region" aria-label="Configured Audible accounts">{accounts}</div>
 </div>
 </main>
 </body>
@@ -352,7 +424,7 @@ STEP1 = """<div class=step>
 <form method=post action=/start>
 <label for=email>Audible / Amazon email</label>
 <input id=email name=email type=email required autocomplete="email" inputmode="email"
- aria-describedby="email-err" placeholder="someone@example.com">
+ placeholder="someone@example.com">
 <label for=locale>Marketplace</label>
 <input id=locale name=locale value=uk required autocomplete="off">
 <button type=submit>Get sign-in link</button>
@@ -387,6 +459,8 @@ class Handler(BaseHTTPRequestHandler):
         raw = body.encode()
         self.send_response(code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)
@@ -426,7 +500,23 @@ class Handler(BaseHTTPRequestHandler):
             self._page("<p class=err role=alert>Request too large or malformed.</p>" + STEP1, 413)
             return
         form = self._form(length)
-        if self.path.startswith("/start"):
+        if self.path == "/reauth-confirm":
+            email = form.get("email", "").strip()
+            locale = form.get("locale", "").strip()
+            self._page(
+                '<div class=step><h2>Sign out and re-authenticate?</h2>'
+                f'<p>Account: {html.escape(email)} ({html.escape(locale)}).</p>'
+                '<p>This clears its saved Libation sign-in, not your Amazon browser session or '
+                'other devices. Cancelled or failed sign-in leaves it signed out; you can retry. '
+                'Books, account settings and other accounts are kept. A protected recovery copy '
+                'is saved in the config directory before any change.</p>'
+                '<form method="post" action="/reauth">'
+                f'<input type="hidden" name="csrf" value="{REAUTH_CSRF}">'
+                f'<input type="hidden" name="email" value="{html.escape(email)}">'
+                f'<input type="hidden" name="locale" value="{html.escape(locale)}">'
+                '<button type="submit">Sign out and continue</button></form>'
+                '<p><a href="/">Cancel without changes</a></p></div>')
+        elif self.path in {"/start", "/reauth"}:
             email = (form.get("email") or "").strip()
             locale = (form.get("locale") or "uk").strip()
             if not email:
@@ -434,19 +524,39 @@ class Handler(BaseHTTPRequestHandler):
                 # aria-describedby (WCAG 3.3.1 / 4.1.2).
                 self._page('<p class=err role=alert id=email-err>Email is required.</p>' + STEP1, 400)
                 return
-            url, token_or_err = start_login(email, locale)
+            if self.path == "/reauth" and not secrets.compare_digest(
+                    form.get("csrf", "").encode(), REAUTH_CSRF.encode()):
+                self._page('<p class=err role=alert>Reload the page and try again.</p>' + STEP1, 403)
+                return
+            with _start_lock:
+                with _lock:
+                    busy = bool(pending)
+                if busy:
+                    self._page('<p class=err role=alert>A sign-in is already in progress. '
+                               'Finish it or wait 15 minutes before starting another.</p>' + STEP1, 409)
+                    return
+                if self.path == "/reauth":
+                    try:
+                        sign_out(email, locale)
+                    except (OSError, ValueError):
+                        self._page('<p class=err role=alert>Could not safely sign out this account. '
+                                   'Reload the account list and check config permissions.</p>' + STEP1, 409)
+                        return
+                url, token_or_err = start_login(email, locale)
             if not url:
                 self._page(
                     "<p class=err>Could not get a sign-in link.</p><pre>"
-                    + html.escape(token_or_err) + "</pre>" + STEP1, 500)
+                    + "Retry sign-in. If this follows sign-out, the account remains signed out."
+                    + "</pre>" + STEP1, 500)
                 return
             self._page(step2(url, token_or_err))
         elif self.path.startswith("/finish"):
-            ok, out = finish_login(form.get("token", ""), form.get("response", ""))
+            with _start_lock:
+                ok, _ = finish_login(form.get("token", ""), form.get("response", ""))
             cls = "ok" if ok else "err"
-            msg = "Account added." if ok else "Sign-in did not complete."
+            msg = "Account sign-in saved." if ok else "Sign-in did not complete."
             self._page(
-                f"<p class={cls}><strong>{msg}</strong></p><pre>{html.escape(out)}</pre>" + STEP1)
+                f'<p class={cls} role="status"><strong>{msg}</strong></p>' + STEP1)
         else:
             self._page(STEP1, 404)
 

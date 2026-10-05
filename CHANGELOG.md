@@ -13,6 +13,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-05
+
+### Added
+- Per-account Re-authenticate buttons with confirmation: back up credentials, sign out only the
+  selected email/marketplace, then start fresh browser authentication. Preserve account preferences
+  and library data; serialise helper login flows and protect the sign-out POST against cross-site forms.
+
+### Fixed
+- Recognise Linux PTY end-of-file (EIO) when completing browser sign-in, then check the
+  child exit status rather than reporting a successful login as failed.
+
 ## [1.2.0] - 2026-09-22
 
 ### Security
@@ -84,7 +95,8 @@ tagged releases, a static-analysis CI gate, an accessible (WCAG 2.2 AA) web logi
 - Docs: `CLAUDE.md` / `README` corrected — they claimed Libation 13.1.1 (actual 13.7.5) and described only
   the GUI container.
 
-[Unreleased]: https://github.com/MDHMatt/libate/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/MDHMatt/libate/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/MDHMatt/libate/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/MDHMatt/libate/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/MDHMatt/libate/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MDHMatt/libate/releases/tag/v1.0.0
